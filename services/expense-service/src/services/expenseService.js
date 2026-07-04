@@ -4,16 +4,40 @@ import { receiptSchema } from '../models/Receipt.js';
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
 
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: 'receipts' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
 // ─── Upload & OCR Receipt ───────────────────────────────────────────────────
 export const uploadAndScanReceipt = async (tenantContext, file, employeeId) => {
   const { dbName, id: tenantId } = tenantContext;
   const Receipt = getTenantModel(dbName, 'Receipt', receiptSchema);
 
-  // 1. Create receipt record with status = processing
+  // 1. Upload file buffer to Cloudinary
+  let cloudinaryResult;
+  try {
+    cloudinaryResult = await uploadToCloudinary(file.buffer);
+  } catch (err) {
+    throw { status: 500, message: 'Failed to upload receipt to Cloudinary', error: err };
+  }
+
+  // 2. Create receipt record with status = processing
   const receipt = await Receipt.create({
     originalName: file.originalname,
-    fileName: file.filename,
-    filePath: file.path,
+    fileName: cloudinaryResult.public_id,
+    filePath: cloudinaryResult.secure_url,
     mimeType: file.mimetype,
     fileSize: file.size,
     employeeId,
@@ -21,9 +45,9 @@ export const uploadAndScanReceipt = async (tenantContext, file, employeeId) => {
     ocrStatus: 'processing',
   });
 
-  // 2. Run OCR (async but we await it here)
+  // 3. Run OCR using the buffer (async but we await it here)
   try {
-    const { text, confidence } = await processReceipt(file.path, file.mimetype);
+    const { text, confidence } = await processReceipt(file.buffer, file.mimetype);
     const extractedData = parseReceiptText(text);
 
     receipt.rawText = text;

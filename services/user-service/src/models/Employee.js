@@ -5,16 +5,16 @@ import mongoose from 'mongoose';
 // ─────────────────────────────────────────────
 const userSchema = new mongoose.Schema(
   {
-    firstName:    { type: String, required: true, trim: true },
-    lastName:     { type: String, required: true, trim: true },
-    employeeId:   { type: String, required: true, unique: true, trim: true },
-    email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password:     { type: String, required: true },
-    phone:        { type: String, default: null, trim: true },
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    employeeId: { type: String, required: true, unique: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true },
+    phone: { type: String, default: null, trim: true },
     profilePhoto: { type: String, default: null },          // URL / file path
-    department:   { type: String, required: true, trim: true },
-    designation:  { type: String, required: true, trim: true },
-    joiningDate:  { type: Date, default: Date.now },
+    department: { type: String, required: true, trim: true },
+    designation: { type: String, required: true, trim: true },
+    joiningDate: { type: Date, default: Date.now },
     status: {
       type: String,
       enum: ['active', 'inactive', 'suspended'],
@@ -50,17 +50,17 @@ const employeeProfileSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
-    expenseLimit:      { type: Number, default: 0 },
-    costCenter:        { type: String, default: null, trim: true },
+    expenseLimit: { type: Number, default: 0 },
+    costCenter: { type: String, default: null, trim: true },
     employmentType: {
       type: String,
       enum: ['full-time', 'part-time', 'contract', 'intern'],
       default: 'full-time',
     },
-    officeLocation:    { type: String, default: null, trim: true },
-    panNumber:         { type: String, default: null, trim: true },
+    officeLocation: { type: String, default: null, trim: true },
+    panNumber: { type: String, default: null, trim: true },
     bankAccountNumber: { type: String, default: null, trim: true },
-    ifscCode:          { type: String, default: null, trim: true },
+    ifscCode: { type: String, default: null, trim: true },
   },
   { timestamps: true }
 );
@@ -83,7 +83,7 @@ const managerProfileSchema = new mongoose.Schema(
       },
     ],
     approvalLimit: { type: Number, default: 0 },
-    permissions:   { type: [String], default: [] },   // e.g. ['approve_expense', 'view_reports']
+    permissions: { type: [String], default: [] },   // e.g. ['approve_expense', 'view_reports']
   },
   { timestamps: true }
 );
@@ -126,7 +126,7 @@ const auditorProfileSchema = new mongoose.Schema(
       default: 'internal',
     },
     auditRegion: { type: String, default: null, trim: true },
-    permissions:  { type: [String], default: [] },    // e.g. ['view_all_expenses', 'generate_audit_report']
+    permissions: { type: [String], default: [] },    // e.g. ['view_all_expenses', 'generate_audit_report']
   },
   { timestamps: true }
 );
@@ -145,8 +145,8 @@ export {
 // ─────────────────────────────────────────────
 // Compiled Models (for direct use if needed)
 // ─────────────────────────────────────────────
-export const User            = mongoose.model('User',            userSchema);
+export const User = mongoose.model('User', userSchema);
 export const EmployeeProfile = mongoose.model('EmployeeProfile', employeeProfileSchema);
-export const ManagerProfile  = mongoose.model('ManagerProfile',  managerProfileSchema);
-export const FinanceProfile  = mongoose.model('FinanceProfile',  financeProfileSchema);
-export const AuditorProfile  = mongoose.model('AuditorProfile',  auditorProfileSchema);
+export const ManagerProfile = mongoose.model('ManagerProfile', managerProfileSchema);
+export const FinanceProfile = mongoose.model('FinanceProfile', financeProfileSchema);
+export const AuditorProfile = mongoose.model('AuditorProfile', auditorProfileSchema);

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import connectDB from './src/config/db.js';
 import connectRedis from './src/config/redis.js';
 import { connectRabbitMQ } from './src/config/rabbitmq.js';
+import { connectCloudinary } from './src/config/cloudinary.js';
 import expenseRoutes from './src/routes/expenseRoutes.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
 
@@ -26,6 +27,7 @@ const start = async () => {
   await connectDB();
   await connectRedis();
   await connectRabbitMQ();
+  connectCloudinary();
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`Expense Service listening on port ${PORT}`);
