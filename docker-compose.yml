@@ -1,0 +1,163 @@
+version: '3.9'
+
+# Atlas MongoDB base URI (per-service DB names appended below)
+# mongodb+srv://mohitkumar_db_user:****@eems.trku1ng.mongodb.net
+
+services:
+  redis:
+    image: redis:7.0
+    container_name: ems-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ems-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: ems-api-gateway
+    env_file: .env
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+      - AUTH_SERVICE_URL=http://auth-service:4100
+      - TENANT_SERVICE_URL=http://tenant-service:4200
+      - USER_SERVICE_URL=http://user-service:4300
+      - EXPENSE_SERVICE_URL=http://expense-service:4400
+    depends_on:
+      - redis
+      - rabbitmq
+      - auth-service
+      - tenant-service
+      - user-service
+      - expense-service
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: ems-auth-service
+    env_file: .env
+    ports:
+      - '4100:4100'
+    environment:
+      - NODE_ENV=production
+      - PORT=4100
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-auth?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  tenant-service:
+    build: ./services/tenant-service
+    container_name: ems-tenant-service
+    env_file: .env
+    ports:
+      - '4200:4200'
+    environment:
+      - NODE_ENV=production
+      - PORT=4200
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-tenant?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+      - TENANT_BASE_URL=http://localhost:3000
+    depends_on:
+      - redis
+      - rabbitmq
+
+  user-service:
+    build: ./services/user-service
+    container_name: ems-user-service
+    env_file: .env
+    ports:
+      - '4300:4300'
+    environment:
+      - NODE_ENV=production
+      - PORT=4300
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-user?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  expense-service:
+    build: ./services/expense-service
+    container_name: ems-expense-service
+    env_file: .env
+    ports:
+      - '4400:4400'
+    environment:
+      - NODE_ENV=production
+      - PORT=4400
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-expense?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  workflow-service:
+    build: ./services/workflow-service
+    container_name: ems-workflow-service
+    env_file: .env
+    ports:
+      - '4700:4700'
+    environment:
+      - NODE_ENV=production
+      - PORT=4700
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-workflow?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: ems-notification-service
+    env_file: .env
+    ports:
+      - '4500:4500'
+    environment:
+      - NODE_ENV=production
+      - PORT=4500
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  file-service:
+    build: ./services/file-service
+    container_name: ems-file-service
+    env_file: .env
+    ports:
+      - '4600:4600'
+    environment:
+      - NODE_ENV=production
+      - PORT=4600
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq

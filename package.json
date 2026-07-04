@@ -1,0 +1,14 @@
+{
+  "name": "ems-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start:gateway": "cd services/api-gateway && npm run start",
+    "start:auth": "cd services/auth-service && npm run start",
+    "start:tenant": "cd services/tenant-service && npm run start",
+    "start:user": "cd services/user-service && npm run start",
+    "start:expense": "cd services/expense-service && npm run start",
+    "start:notification": "cd services/notification-service && npm run start",
+    "start:file": "cd services/file-service && npm run start"
+  }
+}
