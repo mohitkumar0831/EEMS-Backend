@@ -3,7 +3,7 @@ import { expenseSchema } from '../models/Expense.js';
 import { receiptSchema } from '../models/Receipt.js';
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
-
+import { processRazorpayPayout, generatePayoutReceipt } from './payoutService.js';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 
@@ -83,6 +83,7 @@ export const getReceiptById = async (tenantContext, receiptId) => {
 export const createExpense = async (tenantContext, expenseData) => {
   const { dbName, id: tenantId } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
   const expense = await Expense.create({
     ...expenseData,
@@ -97,27 +98,32 @@ export const createExpense = async (tenantContext, expenseData) => {
 export const getExpensesByEmployee = async (tenantContext, employeeId) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
-  return Expense.find({ employeeId }).sort({ createdAt: -1 });
+  return Expense.find({ employeeId }).populate('receiptId').sort({ createdAt: -1 });
 };
 
 // ─── Get Expenses for Manager Approval ──────────────────────────────────────
-export const getExpensesForManager = async (tenantContext, managerId) => {
+export const getExpensesForManager = async (tenantContext, managerId, filters = {}) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
-  return Expense.find({
-    assignedManagerId: managerId,
-    status: 'Submitted',
-  }).sort({ createdAt: -1 });
+  const query = { assignedManagerId: managerId };
+  if (filters.status) {
+    query.status = filters.status;
+  }
+
+  return Expense.find(query).populate('receiptId').sort({ createdAt: -1 });
 };
 
 // ─── Get Single Expense ─────────────────────────────────────────────────────
 export const getExpenseById = async (tenantContext, expenseId) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
-  const expense = await Expense.findById(expenseId);
+  const expense = await Expense.findById(expenseId).populate('receiptId');
   if (!expense) {
     throw { status: 404, message: 'Expense not found' };
   }
@@ -128,27 +134,86 @@ export const getExpenseById = async (tenantContext, expenseId) => {
 export const updateExpenseStatus = async (tenantContext, expenseId, statusData) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
   const expense = await Expense.findById(expenseId);
   if (!expense) {
     throw { status: 404, message: 'Expense not found' };
   }
 
+  // Update status and current remarks
   expense.status = statusData.status;
+  expense.remarks = statusData.remarks || null;
+
+  // Add to action history
+  expense.actionHistory.push({
+    status: statusData.status,
+    actionBy: statusData.actionBy,
+    remarks: statusData.remarks || null,
+    actionAt: new Date(),
+  });
+
   await expense.save();
 
-  return expense;
+  return expense.populate('receiptId');
 };
 
 // ─── Get All Expenses (admin/finance view) ──────────────────────────────────
 export const getAllExpenses = async (tenantContext, filters = {}) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
   const query = {};
   if (filters.status) query.status = filters.status;
   if (filters.employeeId) query.employeeId = filters.employeeId;
   if (filters.category) query.category = filters.category;
 
-  return Expense.find(query).sort({ createdAt: -1 });
+  return Expense.find(query).populate('receiptId').sort({ createdAt: -1 });
+};
+
+// ─── Process Payout (Finance Team) ──────────────────────────────────────────
+export const processExpensePayout = async (tenantContext, expenseId, payoutData) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
+
+  const expense = await Expense.findById(expenseId);
+  if (!expense) {
+    throw { status: 404, message: 'Expense not found' };
+  }
+
+  // Check if expense is in a valid state to be paid
+  if (!['Manager Approved', 'Finance Approved'].includes(expense.status)) {
+    throw { status: 400, message: 'Expense must be Manager Approved or Finance Approved before payout' };
+  }
+
+  // 1. Process payout via Razorpay (Mocked)
+  const payoutResult = await processRazorpayPayout(expense, payoutData.payoutRoute, payoutData.paymentReference);
+
+  // 2. Generate PDF Receipt
+  const receiptUrl = await generatePayoutReceipt(expense, {
+    payoutRoute: payoutData.payoutRoute,
+    paymentReference: payoutResult.paymentReference,
+    payoutId: payoutResult.payoutId
+  });
+
+  // 3. Update Expense document
+  expense.status = 'Paid';
+  expense.payoutRoute = payoutData.payoutRoute;
+  expense.paymentReference = payoutResult.paymentReference;
+  expense.razorpayPayoutId = payoutResult.payoutId;
+  expense.payoutReceiptUrl = receiptUrl;
+
+  // Add action history
+  expense.actionHistory.push({
+    status: 'Paid',
+    actionBy: payoutData.actionBy,
+    remarks: 'Payout disbursed successfully via ' + payoutData.payoutRoute,
+    actionAt: new Date(),
+  });
+
+  await expense.save();
+
+  return expense.populate('receiptId');
 };

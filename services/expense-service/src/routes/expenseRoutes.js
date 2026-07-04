@@ -8,8 +8,9 @@ import {
   getAllExpenses,
   uploadReceipt,
   getReceiptById,
+  processPayout,
 } from '../controllers/expenseController.js';
-import { createExpenseSchema, updateExpenseStatusSchema } from '../validators/expenseValidator.js';
+import { createExpenseSchema, updateExpenseStatusSchema, processPayoutSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
 import { upload } from '../middlewares/upload.js';
 
@@ -58,5 +59,8 @@ router.get('/tenant/:slug/:id', getExpenseById);
 
 // Update expense status (manager/finance/auditor approval)
 router.patch('/tenant/:slug/:id/status', validateRequest(updateExpenseStatusSchema), updateExpenseStatus);
+
+// Process payout (finance team)
+router.post('/tenant/:slug/:id/payout', validateRequest(processPayoutSchema), processPayout);
 
 export default router;

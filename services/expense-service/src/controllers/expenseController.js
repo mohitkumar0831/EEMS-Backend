@@ -77,7 +77,8 @@ export const getExpensesByEmployee = async (req, res, next) => {
 // GET /expenses/manager/:managerId — Manager views pending approvals
 export const getExpensesForManager = async (req, res, next) => {
   try {
-    const expenses = await expenseService.getExpensesForManager(req.tenant, req.params.managerId);
+    const filters = { status: req.query.status };
+    const expenses = await expenseService.getExpensesForManager(req.tenant, req.params.managerId, filters);
     res.status(200).json({
       success: true,
       message: 'Pending expenses retrieved successfully',
@@ -129,6 +130,20 @@ export const getAllExpenses = async (req, res, next) => {
       success: true,
       message: 'All expenses retrieved successfully',
       data: expenses,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /expenses/:id/payout — Finance processes payout
+export const processPayout = async (req, res, next) => {
+  try {
+    const expense = await expenseService.processExpensePayout(req.tenant, req.params.id, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Payout processed successfully',
+      data: expense,
     });
   } catch (error) {
     next(error);

@@ -30,4 +30,13 @@ export const updateExpenseStatusSchema = Joi.object({
     )
     .required(),
   remarks: Joi.string().max(500).optional().allow('', null),
+  actionBy: Joi.string().hex().length(24).required(),
+});
+
+export const processPayoutSchema = Joi.object({
+  actionBy: Joi.string().hex().length(24).required(),
+  payoutRoute: Joi.string()
+    .valid('ACH Direct Deposit', 'Wire Transfer', 'Corporate Credit Card', 'Check Clearance')
+    .required(),
+  paymentReference: Joi.string().max(100).optional().allow('', null),
 });

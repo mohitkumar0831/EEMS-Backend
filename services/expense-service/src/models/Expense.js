@@ -72,6 +72,39 @@ const expenseSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    remarks: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    
+    // ─── Payout Details ─────────────────────────────────────────
+    payoutRoute: {
+      type: String,
+      enum: ['ACH Direct Deposit', 'Wire Transfer', 'Corporate Credit Card', 'Check Clearance', null],
+      default: null,
+    },
+    paymentReference: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpayPayoutId: {
+      type: String,
+      default: null,
+    },
+    payoutReceiptUrl: {
+      type: String,
+      default: null,
+    },
+    actionHistory: [
+      {
+        status: { type: String, required: true },
+        actionBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        remarks: { type: String, default: null },
+        actionAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
