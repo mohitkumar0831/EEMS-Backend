@@ -24,6 +24,13 @@ const uploadToCloudinary = (buffer) => {
 export const uploadAndScanReceipt = async (tenantContext, file, employeeId) => {
   const { dbName, id: tenantId } = tenantContext;
   const Receipt = getTenantModel(dbName, 'Receipt', receiptSchema);
+  
+  // Fix for old unique indexes: drop indexes not in current schema
+  try {
+    await Receipt.syncIndexes();
+  } catch (err) {
+    console.error('Error syncing indexes:', err);
+  }
 
   // 1. Upload file buffer to Cloudinary
   let cloudinaryResult;

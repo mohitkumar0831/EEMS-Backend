@@ -46,9 +46,9 @@ export const registerTenant = async (payload, registeredBy) => {
   // 1. Generate slug
   const slug = generateSlug(payload.companyName);
   const dbName = `ems-tenant-${slug}`;
-  // tenantUrl = the actual login API endpoint tenants use to authenticate
-  const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:4100';
-  const tenantUrl = `${authServiceUrl}/api/v1/auth/tenant/${slug}/login`;
+  // tenantUrl = the frontend URL where tenants can log into their workspace
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const tenantUrl = `${frontendUrl}/${slug}`;
 
   // 2. Check uniqueness
   const existing = await Tenant.findOne({ 

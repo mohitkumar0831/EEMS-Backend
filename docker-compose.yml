@@ -105,6 +105,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4400
+      - NODE_OPTIONS=--dns-result-order=ipv4first
       - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-expense?appName=EEMS
       - REDIS_HOST=redis
       - REDIS_PORT=6379

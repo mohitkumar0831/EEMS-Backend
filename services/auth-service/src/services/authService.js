@@ -48,6 +48,7 @@ export const createEmployeeUser = async ({ tenantId, tenantSlug, employeeId, ema
   const hashedPassword = await hashPassword(password);
   
   await User.create({
+    _id: employeeId,
     name,
     email,
     password: hashedPassword,

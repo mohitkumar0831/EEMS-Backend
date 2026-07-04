@@ -5,7 +5,7 @@ export const connectCloudinary = () => {
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
-    timeout: 5000,
+    timeout: 60000,
   });
 };
 
