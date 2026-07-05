@@ -1,20 +1,19 @@
 import Razorpay from 'razorpay';
 import PDFDocument from 'pdfkit';
-import cloudinary from '../config/cloudinary.js';
-import streamifier from 'streamifier';
+import { v2 as cloudinary } from 'cloudinary';
 import crypto from 'crypto';
 
 // Helper to upload a buffer to Cloudinary
-const uploadToCloudinary = (buffer, folder = 'payout_receipts') => {
+const uploadPdfToCloudinary = (pdfBuffer) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder },
+      { folder: 'receipts/payouts', resource_type: 'raw', format: 'pdf' },
       (error, result) => {
         if (error) return reject(error);
         resolve(result);
       }
     );
-    streamifier.createReadStream(buffer).pipe(uploadStream);
+    uploadStream.end(pdfBuffer);
   });
 };
 
@@ -71,7 +70,7 @@ export const generatePayoutReceipt = async (expense, payoutDetails) => {
         const pdfBuffer = Buffer.concat(buffers);
         try {
           // Attempt to upload, but provide a timeout wrapper or catch the stream error
-          const uploadResult = await uploadToCloudinary(pdfBuffer);
+          const uploadResult = await uploadPdfToCloudinary(pdfBuffer);
           resolve(uploadResult.secure_url);
         } catch (error) {
           console.error('Cloudinary upload failed, using fallback URL:', error.message);

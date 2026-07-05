@@ -5,7 +5,6 @@ import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
 import { createOrder, verifySignature, generatePayoutReceipt } from './payoutService.js';
 import { v2 as cloudinary } from 'cloudinary';
-import streamifier from 'streamifier';
 
 const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {
@@ -16,7 +15,7 @@ const uploadToCloudinary = (buffer) => {
         resolve(result);
       }
     );
-    streamifier.createReadStream(buffer).pipe(uploadStream);
+    uploadStream.end(buffer);
   });
 };
 
@@ -37,6 +36,7 @@ export const uploadAndScanReceipt = async (tenantContext, file, employeeId) => {
   try {
     cloudinaryResult = await uploadToCloudinary(file.buffer);
   } catch (err) {
+    console.error('Cloudinary Upload Error Details:', err);
     throw { status: 500, message: 'Failed to upload receipt to Cloudinary', error: err };
   }
 
@@ -172,7 +172,13 @@ export const getAllExpenses = async (tenantContext, filters = {}) => {
   getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
 
   const query = {};
-  if (filters.status) query.status = filters.status;
+  if (filters.status) {
+    if (filters.status.includes(',')) {
+      query.status = { $in: filters.status.split(',').map(s => s.trim()) };
+    } else {
+      query.status = filters.status;
+    }
+  }
   if (filters.employeeId) query.employeeId = filters.employeeId;
   if (filters.category) query.category = filters.category;
 

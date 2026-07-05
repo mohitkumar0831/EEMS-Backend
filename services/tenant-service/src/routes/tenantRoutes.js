@@ -30,7 +30,7 @@ router.get('/', authenticate, authorize('super_admin'), getAllTenants);
 // Get tenant summary — super_admin only
 router.get('/summary', authenticate, authorize('super_admin'), getTenantsSummary);
 
-// Get tenant by slug — super_admin only
-router.get('/:slug', authenticate, authorize('super_admin'), getTenantBySlug);
+// Get tenant by slug — any authenticated user can view basic tenant info
+router.get('/:slug', authenticate, getTenantBySlug);
 
 export default router;
