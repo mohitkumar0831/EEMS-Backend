@@ -9,6 +9,7 @@ import {
   registerSuperAdmin,
   getDashboardStats,
   getTenantUserCounts,
+  requestTenantPasswordReset,
 } from '../controllers/authController.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import {
@@ -55,6 +56,7 @@ router.post('/refresh-token', validateRequest(refreshSchema), refreshToken);
 
 // Password management
 router.post('/forgot-password', validateRequest(forgotPasswordSchema), requestPasswordReset);
+router.post('/tenant/:slug/forgot-password', validateRequest(forgotPasswordSchema), requestTenantPasswordReset);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
 router.post('/change-password', authenticate, validateRequest(changePasswordSchema), changePassword);
 

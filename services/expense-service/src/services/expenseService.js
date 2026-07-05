@@ -305,6 +305,39 @@ export const verifyRazorpayPayment = async (tenantContext, expenseId, verificati
   return expense.populate('receiptId');
 };
 
+// ─── Get Manager Dashboard Metrics ────────────────────────────────────────────
+export const getManagerDashboardMetrics = async (tenantContext, managerId) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  const expenses = await Expense.find({ assignedManagerId: managerId }).lean();
+
+  let pendingExpensesCount = 0;
+  let budgetUtilized = 0;
+  const categorySpend = {};
+  const pendingExpenses = [];
+
+  for (const exp of expenses) {
+    if (['Submitted', 'Pending', 'Under Review'].includes(exp.status)) {
+      pendingExpensesCount++;
+      pendingExpenses.push(exp);
+    }
+    if (['Manager Approved', 'Finance Approved', 'Paid', 'Audited'].includes(exp.status)) {
+      budgetUtilized += (exp.amount || 0);
+      categorySpend[exp.category] = (categorySpend[exp.category] || 0) + (exp.amount || 0);
+    }
+  }
+
+  return {
+    pendingExpensesCount,
+    pendingExpenses,
+    budgetUtilized,
+    categorySpend,
+    pendingTravelCount: 0, // Mocked for now since no travel service exists
+    pendingTravel: [] 
+  };
+};
+
 // ─── Get Finance Dashboard Metrics ────────────────────────────────────────────
 export const getFinanceDashboardMetrics = async (tenantContext) => {
   const { dbName } = tenantContext;

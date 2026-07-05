@@ -225,3 +225,12 @@ export const getDashboardStats = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getManagerDashboard = async (req, res, next) => {
+  try {
+    const metrics = await expenseService.getManagerDashboardMetrics(req.tenant, req.params.managerId);
+    res.status(200).json({ success: true, data: metrics });
+  } catch (error) {
+    next(error);
+  }
+};

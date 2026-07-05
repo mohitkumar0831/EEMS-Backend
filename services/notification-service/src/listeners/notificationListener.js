@@ -3,6 +3,8 @@ import { sendEmail } from '../services/emailService.js';
 import { emitToUser, emitToTenant } from '../socket/socketServer.js';
 import { tenantWelcomeTemplate } from '../templates/tenantWelcome.js';
 import { passwordResetTemplate } from '../templates/passwordReset.js';
+import { tenantPasswordResetTemplate } from '../templates/tenantPasswordResetTemplate.js';
+import { userWelcomeTemplate } from '../templates/userWelcomeTemplate.js';
 
 const notificationListener = async () => {
   // --- Tenant Welcome Email ---
@@ -18,6 +20,18 @@ const notificationListener = async () => {
     }
   );
 
+  // --- User Welcome Email ---
+  await subscribeToQueue(
+    'ems.events',
+    'employee.registered',
+    'notification.user.welcome',
+    async ({ email, name, role, tenantSlug, password }) => {
+      console.log(`[Notification] Sending user welcome email to ${email} (Role: ${role})`);
+      const { subject, html } = userWelcomeTemplate({ name, email, role, tenantSlug, password });
+      await sendEmail({ to: email, subject, html });
+    }
+  );
+
   // --- Password Reset Email ---
   await subscribeToQueue(
     'ems.events',
@@ -27,6 +41,19 @@ const notificationListener = async () => {
       // eslint-disable-next-line no-console
       console.log(`[Notification] Sending password reset email to ${email}`);
       const { subject, html } = passwordResetTemplate({ name, resetToken });
+      await sendEmail({ to: email, subject, html });
+    }
+  );
+
+  // --- Tenant Password Reset Email ---
+  await subscribeToQueue(
+    'ems.events',
+    'notification.tenant_password_reset',
+    'notification.tenant.password.reset',
+    async ({ email, name, resetToken, tenantSlug }) => {
+      // eslint-disable-next-line no-console
+      console.log(`[Notification] Sending tenant password reset email to ${email}`);
+      const { subject, html } = tenantPasswordResetTemplate({ name, resetToken, tenantSlug });
       await sendEmail({ to: email, subject, html });
     }
   );

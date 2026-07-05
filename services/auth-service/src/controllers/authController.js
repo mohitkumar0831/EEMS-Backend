@@ -38,6 +38,16 @@ export const requestPasswordReset = async (req, res) => {
   }
 };
 
+export const requestTenantPasswordReset = async (req, res) => {
+  try {
+    const payload = { ...req.body, tenantSlug: req.params.slug };
+    const result = await authService.requestTenantPasswordReset(payload);
+    return successResponse({ res, message: result.message, data: null });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
+  }
+};
+
 export const resetPassword = async (req, res) => {
   try {
     const result = await authService.resetPassword(req.body);

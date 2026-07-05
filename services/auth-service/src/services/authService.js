@@ -162,7 +162,7 @@ export const requestPasswordReset = async ({ email }) => {
   if (!user) {
     throw { status: 404, message: 'User not found' };
   }
-  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetToken = crypto.randomInt(100000, 999999).toString();
   const resetTokenExpiry = Date.now() + 3600000;
   user.passwordResetToken = resetToken;
   user.passwordResetExpires = resetTokenExpiry;
@@ -171,10 +171,34 @@ export const requestPasswordReset = async ({ email }) => {
   return { message: 'Password reset initiated' };
 };
 
-export const resetPassword = async ({ token, password }) => {
-  const user = await User.findOne({ passwordResetToken: token, passwordResetExpires: { $gt: Date.now() }, isDeleted: false });
+export const requestTenantPasswordReset = async ({ email, tenantSlug }) => {
+  const user = await User.findOne({ email, tenantSlug, isDeleted: false });
   if (!user) {
-    throw { status: 400, message: 'Invalid password reset token' };
+    throw { status: 404, message: 'User not found in this company workspace' };
+  }
+  const resetToken = crypto.randomInt(100000, 999999).toString();
+  const resetTokenExpiry = Date.now() + 3600000;
+  user.passwordResetToken = resetToken;
+  user.passwordResetExpires = resetTokenExpiry;
+  await user.save();
+  await sendNotificationEvent('notification.tenant_password_reset', { 
+    email: user.email, 
+    resetToken, 
+    name: user.name,
+    tenantSlug: user.tenantSlug
+  });
+  return { message: 'Password reset initiated for your company account' };
+};
+
+export const resetPassword = async ({ email, token, password }) => {
+  const user = await User.findOne({ 
+    email, 
+    passwordResetToken: token, 
+    passwordResetExpires: { $gt: Date.now() }, 
+    isDeleted: false 
+  });
+  if (!user) {
+    throw { status: 400, message: 'Invalid or expired OTP, or incorrect email' };
   }
   user.password = await hashPassword(password);
   user.passwordResetToken = null;

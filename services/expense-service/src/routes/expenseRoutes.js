@@ -14,7 +14,8 @@ import {
   getFinanceDashboard,
   getAuditorDashboard,
   getAdminDashboard,
-  getDashboardStats
+  getDashboardStats,
+  getManagerDashboard
 } from '../controllers/expenseController.js';
 import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
@@ -84,5 +85,8 @@ router.get('/tenant/:slug/auditor/dashboard', getAuditorDashboard);
 
 // Admin Dashboard Metrics
 router.get('/tenant/:slug/admin/dashboard', getAdminDashboard);
+
+// Manager Dashboard Metrics
+router.get('/tenant/:slug/manager/:managerId/dashboard', getManagerDashboard);
 
 export default router;

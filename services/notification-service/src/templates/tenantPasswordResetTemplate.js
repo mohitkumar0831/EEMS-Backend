@@ -1,13 +1,15 @@
 /**
- * Generates the HTML email for password reset requests.
+ * Generates the HTML email for password reset requests scoped to a tenant.
  */
-export const passwordResetTemplate = ({ name, resetToken }) => ({
-  subject: 'EMS — Password Reset Request',
-  html: `<!DOCTYPE html>
+export const tenantPasswordResetTemplate = ({ name, resetToken, tenantSlug }) => {
+  const companyName = tenantSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  return {
+    subject: `${companyName} — Password Reset Request`,
+    html: `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>Reset Your Password</title>
+  <title>Reset Your ${companyName} Password</title>
   <style>
     body { margin:0; padding:0; background:#f4f6f9; font-family:'Segoe UI',Arial,sans-serif; }
     .wrapper { max-width:600px; margin:40px auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08); }
@@ -24,12 +26,13 @@ export const passwordResetTemplate = ({ name, resetToken }) => ({
     <div class="header"><h1>🔐 Password Reset</h1></div>
     <div class="body">
       <p class="text">Hello <strong>${name}</strong>,</p>
-      <p class="text">We received a request to reset your EMS password. Use the OTP below in the reset form:</p>
+      <p class="text">We received a request to reset your password for your <strong>${companyName}</strong> account. Use the OTP below in the reset form:</p>
       <div class="token-box">${resetToken}</div>
       <p class="text">This OTP expires in <strong>1 hour</strong>. If you did not request a password reset, please ignore this email.</p>
     </div>
-    <div class="footer">© ${new Date().getFullYear()} EMS — Automated email, do not reply.</div>
+    <div class="footer">© ${new Date().getFullYear()} ${companyName} via EMS — Automated email, do not reply.</div>
   </div>
 </body>
 </html>`,
-});
+  };
+};
