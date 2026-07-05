@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -7,9 +8,12 @@ import connectRedis from './src/config/redis.js';
 import { connectRabbitMQ } from './src/config/rabbitmq.js';
 import notificationListener from './src/listeners/notificationListener.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
+import { initSocketServer } from './src/socket/socketServer.js';
 
 dotenv.config();
 const app = express();
+const httpServer = http.createServer(app);
+initSocketServer(httpServer);
 const PORT = process.env.PORT || 4500;
 
 app.use(helmet());
@@ -25,7 +29,7 @@ const start = async () => {
   await connectRedis();
   await connectRabbitMQ();
   await notificationListener();
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`Notification Service listening on port ${PORT}`);
   });

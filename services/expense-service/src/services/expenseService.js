@@ -3,19 +3,30 @@ import { expenseSchema } from '../models/Expense.js';
 import { receiptSchema } from '../models/Receipt.js';
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
+import { publishEvent } from '../config/rabbitmq.js';
 import { createOrder, verifySignature, generatePayoutReceipt } from './payoutService.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-const uploadToCloudinary = (buffer) => {
+const uploadToCloudinary = (buffer, retries = 3) => {
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'receipts' },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result);
-      }
-    );
-    uploadStream.end(buffer);
+    const attemptUpload = (attempt) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'receipts', timeout: 120000 }, // Increased timeout
+        (error, result) => {
+          if (error) {
+            console.error(`Cloudinary upload attempt ${attempt} failed:`, error.message || error);
+            if (attempt < retries) {
+              console.log(`Retrying Cloudinary upload (${attempt + 1}/${retries})...`);
+              return setTimeout(() => attemptUpload(attempt + 1), 2000); // Wait 2s before retry
+            }
+            return reject(error);
+          }
+          resolve(result);
+        }
+      );
+      uploadStream.end(buffer);
+    };
+    attemptUpload(1);
   });
 };
 
@@ -97,6 +108,21 @@ export const createExpense = async (tenantContext, expenseData) => {
     tenantId,
     submittedAt: expenseData.status === 'Draft' ? null : new Date(),
   });
+
+  // Notify manager, finance, and auditors via RabbitMQ if it's submitted
+  if (expense.status === 'Submitted') {
+    try {
+      await publishEvent('ems.events', 'notification.expense.created', {
+        tenantId,
+        managerId: expense.assignedManagerId,
+        expenseId: expense._id,
+        employeeName: expenseData.employeeName || 'An Employee',
+        amount: expense.amount
+      });
+    } catch (err) {
+      console.error('Failed to publish expense.created event:', err);
+    }
+  }
 
   return expense;
 };
