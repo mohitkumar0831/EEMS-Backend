@@ -75,6 +75,7 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
       - TENANT_BASE_URL=http://localhost:3000
+      - AUTH_SERVICE_URL=http://auth-service:4100
     depends_on:
       - redis
       - rabbitmq

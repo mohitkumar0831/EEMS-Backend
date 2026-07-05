@@ -168,3 +168,31 @@ export const assignManager = async (tenantContext, employeeId, managerId) => {
 
   return employeeProfile;
 };
+
+export const getDashboardStats = async () => {
+  const totalUsers = await User.countDocuments({ status: { $ne: 'inactive' } });
+  
+  const roleDistribution = await User.aggregate([
+    { $match: { status: { $ne: 'inactive' } } },
+    { $group: { _id: "$role", count: { $sum: 1 } } }
+  ]);
+
+  const roleCounts = {};
+  roleDistribution.forEach(r => {
+    // Map backend roles to frontend labels
+    const roleMapping = {
+      'admin': 'CompanyAdmin',
+      'employee': 'Employee',
+      'manager': 'Manager',
+      'finance': 'Finance Team',
+      'auditor': 'Auditor',
+      'super_admin': 'SuperAdmin'
+    };
+    roleCounts[roleMapping[r._id] || r._id] = r.count;
+  });
+
+  return {
+    totalUsers,
+    roleCounts
+  };
+};

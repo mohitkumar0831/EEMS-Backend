@@ -1,5 +1,5 @@
 import express from 'express';
-import { createEmployee, getEmployees, getEmployeesByManager, assignManager } from '../controllers/userController.js';
+import { createEmployee, getEmployees, getEmployeesByManager, assignManager, getDashboardStats } from '../controllers/userController.js';
 import { createEmployeeSchema, updateEmployeeSchema, assignManagerSchema } from '../validators/userValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
 
@@ -17,9 +17,12 @@ const validateRequest = (schema) => (req, res, next) => {
 
 const router = express.Router();
 
-router.use(tenantContext);
-
 router.get('/health', (req, res) => res.json({ success: true, message: 'User service is healthy' }));
+
+// SuperAdmin dashboard
+router.get('/dashboard/stats', getDashboardStats);
+
+router.use(tenantContext);
 
 // Employee management routes (supports both with and without slug in URL)
 router.post('/employees', validateRequest(createEmployeeSchema), createEmployee);

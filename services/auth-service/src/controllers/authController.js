@@ -65,3 +65,21 @@ export const registerSuperAdmin = async (req, res) => {
     return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
   }
 };
+
+export const getDashboardStats = async (req, res) => {
+  try {
+    const result = await authService.getDashboardStats();
+    return successResponse({ res, message: 'Stats retrieved successfully', data: result });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
+  }
+};
+
+export const getTenantUserCounts = async (req, res) => {
+  try {
+    const result = await authService.getTenantUserCounts();
+    return successResponse({ res, message: 'Tenant user counts retrieved', data: result });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
+  }
+};

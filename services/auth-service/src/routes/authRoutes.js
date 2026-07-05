@@ -7,6 +7,8 @@ import {
   resetPassword,
   changePassword,
   registerSuperAdmin,
+  getDashboardStats,
+  getTenantUserCounts,
 } from '../controllers/authController.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import {
@@ -17,12 +19,16 @@ import {
   changePasswordSchema,
   registerSuperAdminSchema,
 } from '../validators/authValidator.js';
-import { authenticate } from '../middlewares/authenticate.js';
+import { authenticate, authorize } from '../middlewares/authenticate.js';
 
 const router = express.Router();
 
 // Super admin registration (one-time)
 router.post('/register-super-admin', validateRequest(registerSuperAdminSchema), registerSuperAdmin);
+
+// Dashboard stats
+router.get('/stats/dashboard', authenticate, authorize('super_admin'), getDashboardStats);
+router.get('/stats/tenant-user-counts', authenticate, authorize('super_admin'), getTenantUserCounts);
 
 // General login (super_admin)
 router.post('/login', validateRequest(loginSchema), login);

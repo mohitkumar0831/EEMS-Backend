@@ -196,3 +196,53 @@ export const changePassword = async ({ userId, oldPassword, newPassword }) => {
   await user.save();
   return { message: 'Password changed successfully' };
 };
+
+// ─── Dashboard Stats (SuperAdmin) ───────────────────────────────────────────
+export const getTenantUserCounts = async () => {
+  const userCounts = await User.aggregate([
+    { $match: { isActive: true, isDeleted: false, tenantId: { $ne: null } } },
+    { $group: { _id: "$tenantId", count: { $sum: 1 } } }
+  ]);
+
+  const countsMap = {};
+  userCounts.forEach(c => {
+    countsMap[c._id.toString()] = c.count;
+  });
+
+  return countsMap;
+};
+
+export const getDashboardStats = async () => {
+  const totalUsers = await User.countDocuments({ isActive: true, isDeleted: false, role: { $ne: 'super_admin' } });
+  
+  const roleDistribution = await User.aggregate([
+    { $match: { isActive: true, isDeleted: false, role: { $ne: 'super_admin' } } },
+    { $group: { _id: "$role", count: { $sum: 1 } } }
+  ]);
+
+  const roleCounts = {};
+  roleDistribution.forEach(r => {
+    const roleMapping = {
+      'company_admin': 'CompanyAdmin',
+      'employee': 'Employee',
+      'manager': 'Manager',
+      'finance': 'Finance Team',
+      'auditor': 'Auditor'
+    };
+    roleCounts[roleMapping[r._id] || r._id] = r.count;
+  });
+
+  const usersPerTenantMap = await getTenantUserCounts();
+  const tenantIds = Object.keys(usersPerTenantMap);
+  const activeTenantsCount = tenantIds.length;
+  
+  const totalUsersInTenants = Object.values(usersPerTenantMap).reduce((sum, count) => sum + count, 0);
+  const avgUsersPerTenant = activeTenantsCount > 0 ? (totalUsersInTenants / activeTenantsCount).toFixed(1) : 0;
+
+  return { 
+    totalUsers, 
+    roleCounts,
+    usersPerTenantMap,
+    avgUsersPerTenant 
+  };
+};

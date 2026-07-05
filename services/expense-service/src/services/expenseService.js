@@ -493,3 +493,14 @@ export const getAdminDashboardMetrics = async (tenantContext) => {
     pendingApprovals
   };
 };
+
+export const getDashboardStats = async () => {
+  return {
+    totalSpend: 0,
+    totalClaims: 0,
+    pendingClaims: 0,
+    approvedClaims: 0,
+    flaggedClaims: 0,
+    categorySpend: {}
+  };
+};

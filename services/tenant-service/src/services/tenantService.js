@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import axios from 'axios';
 import Tenant from '../models/Tenant.js';
 import { generateSlug } from '../utils/slug.js';
 import { generateTempPassword } from '../utils/password.js';
@@ -112,8 +113,49 @@ export const registerTenant = async (payload, registeredBy) => {
   };
 };
 
-export const getAllTenants = async () => {
-  return Tenant.find({ isDeleted: false }).select('-__v').sort({ createdAt: -1 });
+export const getAllTenants = async (token) => {
+  const tenants = await Tenant.find({ isDeleted: false }).select('-__v').sort({ createdAt: -1 });
+  
+  let userCounts = {};
+  try {
+    const authUrl = process.env.AUTH_SERVICE_URL || 'http://auth-service:4100';
+    const config = token ? { headers: { Authorization: token } } : {};
+    const response = await axios.get(`${authUrl}/api/v1/auth/stats/tenant-user-counts`, config);
+    if (response.data && response.data.success) {
+      userCounts = response.data.data || {};
+    }
+  } catch (error) {
+    console.error('Failed to fetch user counts from auth-service:', error.message);
+  }
+
+  return tenants.map(t => {
+    const tenantObj = t.toObject();
+    tenantObj.userCount = userCounts[tenantObj._id.toString()] || 0;
+    return tenantObj;
+  });
+};
+
+export const getTenantsSummary = async (token) => {
+  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName createdAt').sort({ createdAt: -1 });
+  
+  let userCounts = {};
+  try {
+    const authUrl = process.env.AUTH_SERVICE_URL || 'http://auth-service:4100';
+    const config = token ? { headers: { Authorization: token } } : {};
+    const response = await axios.get(`${authUrl}/api/v1/auth/stats/tenant-user-counts`, config);
+    if (response.data && response.data.success) {
+      userCounts = response.data.data || {};
+    }
+  } catch (error) {
+    console.error('Failed to fetch user counts from auth-service:', error.message);
+  }
+
+  return tenants.map(t => ({
+    tenantId: t._id,
+    companyName: t.companyName,
+    createdAt: t.createdAt,
+    totalUsersCount: userCounts[t._id.toString()] || 0
+  }));
 };
 
 export const getTenantBySlug = async (slug) => {
@@ -138,5 +180,17 @@ export const validateTenant = async (tenantId, tenantSlug) => {
     slug: tenant.slug,
     dbName: tenant.dbName,
     companyName: tenant.companyName
+  };
+};
+
+export const getDashboardStats = async () => {
+  const activeTenants = await Tenant.countDocuments({ status: 'Active', isDeleted: false });
+  const totalTenants = await Tenant.countDocuments({ isDeleted: false });
+  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName slug status createdAt');
+  
+  return {
+    activeTenants,
+    totalTenants,
+    tenants
   };
 };

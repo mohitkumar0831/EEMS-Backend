@@ -12,8 +12,19 @@ export const registerTenant = async (req, res) => {
 
 export const getAllTenants = async (req, res) => {
   try {
-    const tenants = await tenantService.getAllTenants();
+    const token = req.headers.authorization;
+    const tenants = await tenantService.getAllTenants(token);
     return successResponse({ res, message: 'Tenants retrieved successfully', data: tenants });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
+  }
+};
+
+export const getTenantsSummary = async (req, res) => {
+  try {
+    const token = req.headers.authorization;
+    const summary = await tenantService.getTenantsSummary(token);
+    return successResponse({ res, message: 'Tenant summary retrieved successfully', data: summary });
   } catch (error) {
     return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
   }
@@ -41,5 +52,14 @@ export const validateTenant = async (req, res) => {
     return successResponse({ res, message: 'Tenant validated successfully', data: tenant });
   } catch (error) {
     return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 401 });
+  }
+};
+
+export const getDashboardStats = async (req, res) => {
+  try {
+    const stats = await tenantService.getDashboardStats();
+    return successResponse({ res, message: 'Tenant dashboard stats retrieved successfully', data: stats });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
   }
 };

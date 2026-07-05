@@ -14,6 +14,7 @@ import {
   getFinanceDashboard,
   getAuditorDashboard,
   getAdminDashboard,
+  getDashboardStats
 } from '../controllers/expenseController.js';
 import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
@@ -33,9 +34,12 @@ const validateRequest = (schema) => (req, res, next) => {
 
 const router = express.Router();
 
-router.use(tenantContext);
-
 router.get('/health', (req, res) => res.json({ success: true, message: 'Expense service is healthy' }));
+
+// SuperAdmin dashboard
+router.get('/dashboard/stats', getDashboardStats);
+
+router.use(tenantContext);
 
 // ─── Receipt Upload + OCR ──────────────────────────────────────────────────
 
