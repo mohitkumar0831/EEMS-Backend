@@ -24,7 +24,7 @@ const uploadToCloudinary = (buffer) => {
 export const uploadAndScanReceipt = async (tenantContext, file, employeeId) => {
   const { dbName, id: tenantId } = tenantContext;
   const Receipt = getTenantModel(dbName, 'Receipt', receiptSchema);
-  
+
   // Fix for old unique indexes: drop indexes not in current schema
   try {
     await Receipt.syncIndexes();
@@ -219,7 +219,7 @@ export const createRazorpayOrder = async (tenantContext, expenseId, actionBy) =>
 
   // Create order via Razorpay API
   const order = await createOrder(expense.amount, receiptId);
-  
+
   return {
     orderId: order.id,
     amount: order.amount,
@@ -335,5 +335,161 @@ export const getFinanceDashboardMetrics = async (tenantContext) => {
     pendingApproval: { count: pendingApprovalCount },
     rejectedClaims: { count: rejectedClaimsCount },
     activeClaimants: { count: activeClaimantsSet.size }
+  };
+};
+
+// ─── Get Auditor Dashboard Metrics ────────────────────────────────────────────
+export const getAuditorDashboardMetrics = async (tenantContext) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  const expenses = await Expense.find({}).lean();
+
+  let ledgerClaimsCount = expenses.length;
+  const activeClaimantsSet = new Set();
+
+  let violationCount = 0;
+  let flaggedCount = 0;
+  let flaggedAmount = 0;
+
+  let auditClearedCount = 0;
+
+  let awaitingAuditCount = 0;
+  let awaitingAuditAmount = 0;
+
+  let policyViolationsCount = 0; // mapped from rejected/flagged
+
+  let totalDisbursedAmount = 0;
+
+  for (const exp of expenses) {
+    if (exp.employeeId) activeClaimantsSet.add(exp.employeeId.toString());
+
+    if (exp.status === 'Audit Failed' || exp.status === 'Flagged') {
+      flaggedCount++;
+      flaggedAmount += (exp.amount || 0);
+      violationCount++;
+      policyViolationsCount++;
+    } else if (exp.status === 'Manager Rejected' || exp.status === 'Finance Rejected' || exp.status === 'Under Review') {
+      violationCount++;
+      policyViolationsCount++;
+    }
+
+    if (exp.status === 'Audited') {
+      auditClearedCount++;
+      totalDisbursedAmount += (exp.amount || 0);
+    }
+
+    if (exp.status === 'Paid') {
+      awaitingAuditCount++;
+      awaitingAuditAmount += (exp.amount || 0);
+      totalDisbursedAmount += (exp.amount || 0);
+    }
+
+    // Add flagged claims to total disbursed since they were paid out before auditing
+    if (exp.status === 'Audit Failed' || exp.status === 'Flagged') {
+      totalDisbursedAmount += (exp.amount || 0);
+    }
+  }
+
+  const complianceRate = ledgerClaimsCount > 0
+    ? Math.round(((ledgerClaimsCount - violationCount) / ledgerClaimsCount) * 100)
+    : 100;
+
+  return {
+    ledgerClaims: { count: ledgerClaimsCount, activeClaimants: activeClaimantsSet.size },
+    complianceRate: { percentage: complianceRate, violationsFound: violationCount },
+    flaggedClaims: { count: flaggedCount, underProbeAmount: flaggedAmount },
+    auditCleared: { count: auditClearedCount },
+    awaitingAudit: { count: awaitingAuditCount, amountToReview: awaitingAuditAmount },
+    policyViolations: { count: policyViolationsCount },
+    totalDisbursed: { amount: totalDisbursedAmount }
+  };
+};
+
+// ─── Get Admin Dashboard Metrics ────────────────────────────────────────────────
+export const getAdminDashboardMetrics = async (tenantContext) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  const expenses = await Expense.find({}).lean();
+
+  let pendingClaimsCount = 0;
+  let totalSpendAmount = 0;
+  let reimbursementsPendingCount = 0;
+  let policyViolationsCount = 0;
+
+  const categoryData = {};
+  const monthlyData = {};
+  const statusData = {};
+  const employeeSpend = {};
+
+  for (const exp of expenses) {
+    const amount = exp.amount || 0;
+
+    // Status counts
+    statusData[exp.status] = (statusData[exp.status] || 0) + 1;
+
+    // Categories
+    categoryData[exp.category] = (categoryData[exp.category] || 0) + amount;
+
+    // Monthly
+    const dateToUse = exp.date || exp.createdAt || new Date();
+    const month = new Date(dateToUse).toLocaleString('default', { month: 'short' });
+    monthlyData[month] = (monthlyData[month] || 0) + amount;
+
+    // Employee Spend
+    const empId = exp.employeeId.toString();
+    employeeSpend[empId] = (employeeSpend[empId] || 0) + amount;
+
+    // Pending Claims
+    if (['Draft', 'Pending', 'Submitted', 'Manager Approved', 'Under Review'].includes(exp.status)) {
+      pendingClaimsCount++;
+    }
+
+    // Total Spend (Paid or moving towards paid)
+    if (['Approved', 'Paid', 'Audit Cleared', 'Audit Failed', 'Flagged'].includes(exp.status)) {
+      totalSpendAmount += amount;
+    }
+
+    // Reimbursements Pending (Finance Approved)
+    if (exp.status === 'Approved') {
+      reimbursementsPendingCount++;
+    }
+
+    // Policy Violations
+    if (['Flagged', 'Audit Failed', 'Under Review'].includes(exp.status)) {
+      policyViolationsCount++;
+    }
+  }
+
+  // Top Expenses
+  const topExpenses = [...expenses]
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    .slice(0, 5);
+
+  // Pending Approvals
+  const pendingApprovals = expenses
+    .filter(e => ['Pending', 'Submitted', 'Manager Approved', 'Under Review'].includes(e.status))
+    .sort((a, b) => new Date(b.createdAt || new Date()) - new Date(a.createdAt || new Date()))
+    .slice(0, 5)
+    .map(e => ({
+      type: 'Expense Claim',
+      id: e._id,
+      employeeId: e.employeeId,
+      submittedOn: e.date || e.createdAt,
+      amount: e.amount
+    }));
+
+  return {
+    pendingClaims: pendingClaimsCount,
+    totalSpend: totalSpendAmount,
+    reimbursementsPending: reimbursementsPendingCount,
+    policyViolations: policyViolationsCount,
+    categoryData,
+    monthlyData,
+    statusData,
+    employeeSpend,
+    topExpenses,
+    pendingApprovals
   };
 };

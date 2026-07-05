@@ -190,3 +190,29 @@ export const getFinanceDashboard = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getAuditorDashboard = async (req, res, next) => {
+  try {
+    const metrics = await expenseService.getAuditorDashboardMetrics(req.tenant);
+    res.status(200).json({
+      success: true,
+      message: 'Auditor dashboard metrics retrieved successfully',
+      data: metrics,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAdminDashboard = async (req, res, next) => {
+  try {
+    const metrics = await expenseService.getAdminDashboardMetrics(req.tenant);
+    res.status(200).json({
+      success: true,
+      message: 'Admin dashboard metrics retrieved successfully',
+      data: metrics,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

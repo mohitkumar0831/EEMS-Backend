@@ -93,7 +93,13 @@ export const getEmployees = async (tenantContext) => {
   return users.map(u => {
     const profile = profileMap[u._id.toString()];
     if (profile) {
-      return { ...u, reportingManager: profile.reportingManager };
+      return { 
+        ...u, 
+        reportingManager: profile.reportingManager,
+        panNumber: profile.panNumber || null,
+        bankAccountNumber: profile.bankAccountNumber || null,
+        ifscCode: profile.ifscCode || null,
+      };
     }
     return u;
   });

@@ -62,6 +62,7 @@ export const updateEmployeeSchema = Joi.object({
   phone: Joi.string().pattern(/^\+?[0-9\s\-().]{7,20}$/).optional().allow('', null),
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
+  joiningDate: Joi.date().iso().optional().allow(null),
   status: Joi.string().valid('active', 'inactive', 'suspended').optional(),
   role: Joi.string().valid('employee', 'manager', 'finance', 'auditor', 'admin').optional(),
   profilePhoto: Joi.string().uri().optional().allow('', null),

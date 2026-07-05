@@ -12,6 +12,8 @@ import {
   verifyRazorpayPayment,
   getPayoutsByFinanceUser,
   getFinanceDashboard,
+  getAuditorDashboard,
+  getAdminDashboard,
 } from '../controllers/expenseController.js';
 import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
@@ -72,5 +74,11 @@ router.post('/tenant/:slug/:id/verify-razorpay-payment', validateRequest(verifyR
 
 // Finance Dashboard Metrics
 router.get('/tenant/:slug/finance/dashboard', getFinanceDashboard);
+
+// Auditor Dashboard Metrics
+router.get('/tenant/:slug/auditor/dashboard', getAuditorDashboard);
+
+// Admin Dashboard Metrics
+router.get('/tenant/:slug/admin/dashboard', getAdminDashboard);
 
 export default router;
