@@ -2,6 +2,7 @@ import Razorpay from 'razorpay';
 import PDFDocument from 'pdfkit';
 import cloudinary from '../config/cloudinary.js';
 import streamifier from 'streamifier';
+import crypto from 'crypto';
 
 // Helper to upload a buffer to Cloudinary
 const uploadToCloudinary = (buffer, folder = 'payout_receipts') => {
@@ -17,34 +18,45 @@ const uploadToCloudinary = (buffer, folder = 'payout_receipts') => {
   });
 };
 
-// Process Payout via Razorpay (Mocked if keys are not present)
-export const processRazorpayPayout = async (expense, payoutRoute, paymentReference) => {
+// Create Razorpay Order
+export const createOrder = async (amount, receiptId) => {
   const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
   
-  let payoutId = `mock_payout_${Date.now()}`;
-  
-  if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-    try {
-      // Initialize Razorpay
-      const instance = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
-      
-      // In a full RazorpayX integration, we would create a fund account and trigger a payout API.
-      // Since we may be using sandbox/standard keys, we simulate the actual API call succeeding.
-      console.log('Initiating Razorpay payout...');
-      payoutId = `rzp_payout_${Date.now()}`;
-    } catch (error) {
-      console.error('Razorpay payout failed:', error);
-      throw new Error('Payment gateway error');
-    }
-  } else {
-    console.log('No Razorpay credentials found. Simulating successful payout...');
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay credentials not found in environment');
   }
+
+  try {
+    const instance = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+    
+    const options = {
+      amount: Math.round(amount * 100), // amount in smallest currency unit (paise)
+      currency: "INR",
+      receipt: receiptId.toString()
+    };
+    
+    const order = await instance.orders.create(options);
+    return order;
+  } catch (error) {
+    console.error('Razorpay create order failed:', error);
+    throw new Error('Payment gateway error while creating order');
+  }
+};
+
+// Verify Razorpay Payment Signature
+export const verifySignature = (orderId, paymentId, signature) => {
+  const { RAZORPAY_KEY_SECRET } = process.env;
   
-  return {
-    success: true,
-    payoutId,
-    paymentReference: paymentReference || `REF${Math.floor(Math.random() * 1000000)}`
-  };
+  if (!RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay secret not found in environment');
+  }
+
+  const generatedSignature = crypto
+    .createHmac('sha256', RAZORPAY_KEY_SECRET)
+    .update(orderId + "|" + paymentId)
+    .digest('hex');
+    
+  return generatedSignature === signature;
 };
 
 // Generate Payout Receipt PDF

@@ -8,9 +8,12 @@ import {
   getAllExpenses,
   uploadReceipt,
   getReceiptById,
-  processPayout,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getPayoutsByFinanceUser,
+  getFinanceDashboard,
 } from '../controllers/expenseController.js';
-import { createExpenseSchema, updateExpenseStatusSchema, processPayoutSchema } from '../validators/expenseValidator.js';
+import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
 import { upload } from '../middlewares/upload.js';
 
@@ -54,13 +57,20 @@ router.get('/tenant/:slug/employee/:employeeId', getExpensesByEmployee);
 // Get expenses pending for a manager
 router.get('/tenant/:slug/manager/:managerId', getExpensesForManager);
 
+// Get payouts processed by a specific finance user
+router.get('/tenant/:slug/finance/:financeId/payouts', getPayoutsByFinanceUser);
+
 // Get single expense by ID
 router.get('/tenant/:slug/:id', getExpenseById);
 
 // Update expense status (manager/finance/auditor approval)
 router.patch('/tenant/:slug/:id/status', validateRequest(updateExpenseStatusSchema), updateExpenseStatus);
 
-// Process payout (finance team)
-router.post('/tenant/:slug/:id/payout', validateRequest(processPayoutSchema), processPayout);
+// Process payout (finance team) - Razorpay Integration
+router.post('/tenant/:slug/:id/create-razorpay-order', validateRequest(createRazorpayOrderSchema), createRazorpayOrder);
+router.post('/tenant/:slug/:id/verify-razorpay-payment', validateRequest(verifyRazorpayPaymentSchema), verifyRazorpayPayment);
+
+// Finance Dashboard Metrics
+router.get('/tenant/:slug/finance/dashboard', getFinanceDashboard);
 
 export default router;

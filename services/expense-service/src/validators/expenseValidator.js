@@ -33,10 +33,17 @@ export const updateExpenseStatusSchema = Joi.object({
   actionBy: Joi.string().hex().length(24).required(),
 });
 
-export const processPayoutSchema = Joi.object({
+export const createRazorpayOrderSchema = Joi.object({
   actionBy: Joi.string().hex().length(24).required(),
+});
+
+export const verifyRazorpayPaymentSchema = Joi.object({
+  actionBy: Joi.string().hex().length(24).required(),
+  razorpay_order_id: Joi.string().required(),
+  razorpay_payment_id: Joi.string().required(),
+  razorpay_signature: Joi.string().required(),
   payoutRoute: Joi.string()
     .valid('ACH Direct Deposit', 'Wire Transfer', 'Corporate Credit Card', 'Check Clearance')
-    .required(),
+    .optional(),
   paymentReference: Joi.string().max(100).optional().allow('', null),
 });

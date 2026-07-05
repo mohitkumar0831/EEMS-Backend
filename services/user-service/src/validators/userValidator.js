@@ -66,3 +66,8 @@ export const updateEmployeeSchema = Joi.object({
   role: Joi.string().valid('employee', 'manager', 'finance', 'auditor', 'admin').optional(),
   profilePhoto: Joi.string().uri().optional().allow('', null),
 });
+
+// ─── Assign Manager ────────────────────────────────────────────────────────
+export const assignManagerSchema = Joi.object({
+  managerId: Joi.string().hex().length(24).optional().allow(null),
+});

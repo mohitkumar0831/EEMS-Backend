@@ -24,7 +24,7 @@ app.use(morgan('combined'));
 
 const limiter = rateLimit({
   windowMs: (Number(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
-  max: Number(process.env.RATE_LIMIT_MAX) || 100,
+  max: Number(process.env.RATE_LIMIT_MAX) || 10000, // Increased for dev
   standardHeaders: true,
   legacyHeaders: false,
 });

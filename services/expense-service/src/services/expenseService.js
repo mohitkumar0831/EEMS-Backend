@@ -3,7 +3,7 @@ import { expenseSchema } from '../models/Expense.js';
 import { receiptSchema } from '../models/Receipt.js';
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
-import { processRazorpayPayout, generatePayoutReceipt } from './payoutService.js';
+import { createOrder, verifySignature, generatePayoutReceipt } from './payoutService.js';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 
@@ -179,11 +179,30 @@ export const getAllExpenses = async (tenantContext, filters = {}) => {
   return Expense.find(query).populate('receiptId').sort({ createdAt: -1 });
 };
 
-// ─── Process Payout (Finance Team) ──────────────────────────────────────────
-export const processExpensePayout = async (tenantContext, expenseId, payoutData) => {
+// ─── Get Payout History for Finance User ────────────────────────────────────
+export const getPayoutsByFinanceUser = async (tenantContext, financeId) => {
   const { dbName } = tenantContext;
   const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
   getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
+
+  // Find expenses where status is Paid AND the actionHistory contains a 'Paid' status by this finance user
+  const query = {
+    status: 'Paid',
+    actionHistory: {
+      $elemMatch: {
+        status: 'Paid',
+        actionBy: financeId
+      }
+    }
+  };
+
+  return Expense.find(query).populate('receiptId').sort({ updatedAt: -1 });
+};
+
+// ─── Create Razorpay Order (Finance Team) ──────────────────────────────────────────
+export const createRazorpayOrder = async (tenantContext, expenseId, actionBy) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
 
   const expense = await Expense.findById(expenseId);
   if (!expense) {
@@ -195,32 +214,126 @@ export const processExpensePayout = async (tenantContext, expenseId, payoutData)
     throw { status: 400, message: 'Expense must be Manager Approved or Finance Approved before payout' };
   }
 
-  // 1. Process payout via Razorpay (Mocked)
-  const payoutResult = await processRazorpayPayout(expense, payoutData.payoutRoute, payoutData.paymentReference);
+  // Generate a receipt ID placeholder or use mongo ID
+  const receiptId = `rcpt_${expenseId.substring(0, 10)}`;
 
-  // 2. Generate PDF Receipt
+  // Create order via Razorpay API
+  const order = await createOrder(expense.amount, receiptId);
+  
+  return {
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency
+  };
+};
+
+// ─── Verify Razorpay Payment (Finance Team) ────────────────────────────────────────
+export const verifyRazorpayPayment = async (tenantContext, expenseId, verificationData) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema); // Ensure Receipt model is registered for populate
+
+  const expense = await Expense.findById(expenseId);
+  if (!expense) {
+    throw { status: 404, message: 'Expense not found' };
+  }
+
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, actionBy, payoutRoute, paymentReference } = verificationData;
+
+  // Verify the signature
+  const isValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+  if (!isValid) {
+    throw { status: 400, message: 'Payment signature verification failed' };
+  }
+
+  // Generate PDF Receipt
   const receiptUrl = await generatePayoutReceipt(expense, {
-    payoutRoute: payoutData.payoutRoute,
-    paymentReference: payoutResult.paymentReference,
-    payoutId: payoutResult.payoutId
+    payoutRoute: payoutRoute || 'Razorpay Gateway',
+    paymentReference: razorpay_payment_id,
+    payoutId: razorpay_order_id
   });
 
-  // 3. Update Expense document
+  // Update Expense document
   expense.status = 'Paid';
-  expense.payoutRoute = payoutData.payoutRoute;
-  expense.paymentReference = payoutResult.paymentReference;
-  expense.razorpayPayoutId = payoutResult.payoutId;
+  expense.payoutRoute = payoutRoute || 'Razorpay Gateway';
+  expense.paymentReference = razorpay_payment_id;
+  expense.razorpayPayoutId = razorpay_order_id;
   expense.payoutReceiptUrl = receiptUrl;
 
   // Add action history
   expense.actionHistory.push({
     status: 'Paid',
-    actionBy: payoutData.actionBy,
-    remarks: 'Payout disbursed successfully via ' + payoutData.payoutRoute,
+    actionBy: actionBy,
+    remarks: 'Payout disbursed successfully via Razorpay (Payment ID: ' + razorpay_payment_id + ')',
     actionAt: new Date(),
   });
 
   await expense.save();
 
   return expense.populate('receiptId');
+};
+
+// ─── Get Finance Dashboard Metrics ────────────────────────────────────────────
+export const getFinanceDashboardMetrics = async (tenantContext) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  const expenses = await Expense.find({}).lean();
+
+  let totalDisbursedAmount = 0;
+  let claimsPaid = 0;
+
+  let awaitingPayoutAmount = 0;
+  let approvedClaims = 0;
+
+  let policyViolationsCount = 0;
+  let flaggedAmount = 0;
+
+  let totalSubmittedAmount = 0;
+
+  let pendingApprovalCount = 0;
+  let rejectedClaimsCount = 0;
+
+  const activeClaimantsSet = new Set();
+
+  for (const exp of expenses) {
+    totalSubmittedAmount += (exp.amount || 0);
+    if (exp.employeeId) activeClaimantsSet.add(exp.employeeId.toString());
+
+    if (exp.status === 'Paid') {
+      totalDisbursedAmount += (exp.amount || 0);
+      claimsPaid++;
+    }
+
+    if (exp.status === 'Finance Approved') {
+      awaitingPayoutAmount += (exp.amount || 0);
+      approvedClaims++;
+    }
+
+    if (exp.status === 'Audit Failed' || exp.status === 'Under Review') {
+      policyViolationsCount++;
+      flaggedAmount += (exp.amount || 0);
+    }
+
+    if (exp.status === 'Submitted' || exp.status === 'Manager Approved') {
+      pendingApprovalCount++;
+    }
+
+    if (exp.status === 'Manager Rejected' || exp.status === 'Finance Rejected') {
+      rejectedClaimsCount++;
+    }
+  }
+
+  const averageClaimSize = expenses.length > 0 ? (totalSubmittedAmount / expenses.length) : 0;
+
+  return {
+    totalDisbursed: { amount: totalDisbursedAmount, claimsPaid },
+    awaitingPayout: { amount: awaitingPayoutAmount, approvedClaims },
+    policyViolations: { count: policyViolationsCount, flaggedAmount },
+    totalClaims: { count: expenses.length, submittedAmount: totalSubmittedAmount },
+    averageClaimSize: Math.round(averageClaimSize),
+    pendingApproval: { count: pendingApprovalCount },
+    rejectedClaims: { count: rejectedClaimsCount },
+    activeClaimants: { count: activeClaimantsSet.size }
+  };
 };

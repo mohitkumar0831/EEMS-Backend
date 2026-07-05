@@ -1,6 +1,6 @@
 import express from 'express';
-import { createEmployee, getEmployees } from '../controllers/userController.js';
-import { createEmployeeSchema, updateEmployeeSchema } from '../validators/userValidator.js';
+import { createEmployee, getEmployees, getEmployeesByManager, assignManager } from '../controllers/userController.js';
+import { createEmployeeSchema, updateEmployeeSchema, assignManagerSchema } from '../validators/userValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
 
 const validateRequest = (schema) => (req, res, next) => {
@@ -27,5 +27,7 @@ router.get('/employees', getEmployees);
 
 router.post('/tenant/:slug/employees', validateRequest(createEmployeeSchema), createEmployee);
 router.get('/tenant/:slug/employees', getEmployees);
+router.get('/tenant/:slug/manager/:managerId/employees', getEmployeesByManager);
+router.patch('/tenant/:slug/employees/:employeeId/manager', validateRequest(assignManagerSchema), assignManager);
 
 export default router;
