@@ -44,9 +44,9 @@ router.get('/tenant/:slug/login', (req, res) => {
     success: true,
     message: `Welcome to ${req.params.slug}! To log in, please send a POST request to this URL with your email and password.`,
     data: {
-      method: "POST",
-      url: `http://localhost:4000/api/v1/auth/tenant/${req.params.slug}/login`,
-      body: { email: "your-email", password: "your-password" }
+      companyName: req.params.slug,
+      url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/${req.params.slug}`,
+      slug: req.params.slug
     }
   });
 });

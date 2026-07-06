@@ -2,7 +2,8 @@
  * Generates the HTML email sent to a newly registered user (employee/manager/finance/auditor) of a tenant.
  */
 export const userWelcomeTemplate = ({ name, email, role, tenantSlug, password }) => {
-  const loginUrl = `http://localhost:5173/tenant/${tenantSlug}/login`;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const loginUrl = `${frontendUrl}/tenant/${tenantSlug}/login`;
   const companyName = tenantSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   
   return {
