@@ -188,6 +188,19 @@ export const updateExpenseStatus = async (tenantContext, expenseId, statusData) 
 
   await expense.save();
 
+  try {
+    await publishEvent('ems.events', 'notification.expense.status_updated', {
+      tenantId: expense.tenantId,
+      expenseId: expense._id,
+      employeeId: expense.employeeId,
+      managerId: expense.assignedManagerId,
+      status: expense.status,
+      amount: expense.amount
+    });
+  } catch (err) {
+    console.error('Failed to publish expense.status_updated event:', err);
+  }
+
   return expense.populate('receiptId');
 };
 

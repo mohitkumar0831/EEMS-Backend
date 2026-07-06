@@ -78,9 +78,57 @@ const notificationListener = async () => {
         emitToUser(managerId, 'new_notification', payload);
       }
       // 2. Notify Auditors
-      emitToTenant(`${tenantId}_auditor`, 'new_notification', payload);
+      emitToTenant(`${tenantId}_Auditor`, 'new_notification', payload);
+      emitToTenant(`${tenantId}_auditor`, 'new_notification', payload); // fallback
       // 3. Notify Finance
-      emitToTenant(`${tenantId}_finance`, 'new_notification', payload);
+      emitToTenant(`${tenantId}_Finance Team`, 'new_notification', payload);
+      emitToTenant(`${tenantId}_Finance`, 'new_notification', payload);
+      emitToTenant(`${tenantId}_finance`, 'new_notification', payload); // fallback
+    }
+  );
+
+  // --- Real-time Socket Notification: Expense Status Updated ---
+  await subscribeToQueue(
+    'ems.events',
+    'notification.expense.status_updated',
+    'notification.expense_status_queue',
+    async ({ tenantId, expenseId, employeeId, managerId, status, amount }) => {
+      console.log(`[Notification] Expense status updated to ${status}`);
+      
+      // Notify the employee who created it
+      if (employeeId) {
+        emitToUser(employeeId, 'new_notification', {
+          id: expenseId + '_' + Date.now(),
+          text: `Your expense claim of $${amount} was marked as: ${status}`,
+          time: 'Just now',
+          type: 'expense_status_updated'
+        });
+      }
+      
+      // If Manager Approved, notify Finance and Auditor
+      if (status === 'Manager Approved') {
+        const payloadForFinance = {
+          id: expenseId + '_fin_' + Date.now(),
+          text: `A new expense ($${amount}) was approved by a manager and is ready for finance processing.`,
+          time: 'Just now',
+          type: 'expense_requires_processing'
+        };
+        emitToTenant(`${tenantId}_Finance Team`, 'new_notification', payloadForFinance);
+        emitToTenant(`${tenantId}_Finance`, 'new_notification', payloadForFinance);
+        emitToTenant(`${tenantId}_Auditor`, 'new_notification', payloadForFinance);
+      }
+
+      // If Finance Approved/Paid, notify Manager too
+      if (status === 'Finance Approved' || status === 'Paid') {
+        if (managerId) {
+          emitToUser(managerId, 'new_notification', {
+            id: expenseId + '_mgr_' + Date.now(),
+            text: `An expense you approved ($${amount}) has been ${status}.`,
+            time: 'Just now',
+            type: 'expense_completed'
+          });
+        }
+      }
     }
   );
 
