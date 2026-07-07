@@ -151,10 +151,10 @@ export const getTenantsSummary = async (token) => {
   }
 
   return tenants.map(t => ({
-    id: t._id,
-    name: t.companyName,
+    tenantId: t._id,
+    companyName: t.companyName,
     slug: t.slug,
-    userCount: userCounts[t._id.toString()] || 0,
+    totalUsersCount: userCounts[t._id.toString()] || 0,
     status: t.status,
     createdAt: t.createdAt
   }));
