@@ -31,3 +31,29 @@ export const publishEvent = async (exchange, routingKey, payload) => {
   await ch.assertExchange(exchange, 'topic', { durable: true });
   ch.publish(exchange, routingKey, Buffer.from(JSON.stringify(payload)), { persistent: true });
 };
+
+/**
+ * Subscribe to a topic-exchange routing key pattern.
+ * @param {string} exchange  - exchange name (e.g. 'ems.events')
+ * @param {string} pattern   - routing key pattern (e.g. 'tenant.registered')
+ * @param {string} queue     - durable queue name
+ * @param {Function} handler - async (payload) => void
+ */
+export const subscribeToQueue = async (exchange, pattern, queue, handler) => {
+  const ch = await connectRabbitMQ();
+  await ch.assertExchange(exchange, 'topic', { durable: true });
+  await ch.assertQueue(queue, { durable: true });
+  await ch.bindQueue(queue, exchange, pattern);
+  ch.consume(queue, async (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString());
+      await handler(payload);
+      ch.ack(msg);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[RabbitMQ] Error processing message on queue "${queue}":`, err.message);
+      ch.nack(msg, false, false); // dead-letter without requeue
+    }
+  });
+};

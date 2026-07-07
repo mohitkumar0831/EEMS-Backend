@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerTenant, getAllTenants, getTenantBySlug, validateTenant, getDashboardStats, getTenantsSummary } from '../controllers/tenantController.js';
+import { registerTenant, getAllTenants, getTenantBySlug, validateTenant, getDashboardStats, getTenantsSummary, updateTenantStatus, deleteTenant, getCompanyAdmins } from '../controllers/tenantController.js';
 import { authenticate, authorize } from '../middlewares/authenticate.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { registerTenantSchema } from '../validators/tenantValidator.js';
@@ -30,7 +30,16 @@ router.get('/', authenticate, authorize('super_admin'), getAllTenants);
 // Get tenant summary — super_admin only
 router.get('/summary', authenticate, authorize('super_admin'), getTenantsSummary);
 
-// Get tenant by slug — any authenticated user can view basic tenant info
-router.get('/:slug', authenticate, getTenantBySlug);
+// Get company admins — super_admin only
+router.get('/company-admins', authenticate, authorize('super_admin'), getCompanyAdmins);
+
+// Get a specific tenant by slug — super_admin only
+router.get('/:slug', authenticate, authorize('super_admin'), getTenantBySlug);
+
+// Update a tenant's status (Pause/Resume) — super_admin only
+router.patch('/:slug/status', authenticate, authorize('super_admin'), updateTenantStatus);
+
+// Delete a tenant (Soft Delete) — super_admin only
+router.delete('/:slug', authenticate, authorize('super_admin'), deleteTenant);
 
 export default router;

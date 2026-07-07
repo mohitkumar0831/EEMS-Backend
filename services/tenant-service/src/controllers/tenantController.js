@@ -30,10 +30,38 @@ export const getTenantsSummary = async (req, res) => {
   }
 };
 
+export const getCompanyAdmins = async (req, res) => {
+  try {
+    const admins = await tenantService.getCompanyAdmins();
+    return successResponse({ res, message: 'Company admins retrieved successfully', data: admins });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
+  }
+};
+
 export const getTenantBySlug = async (req, res) => {
   try {
     const tenant = await tenantService.getTenantBySlug(req.params.slug);
     return successResponse({ res, message: 'Tenant retrieved successfully', data: tenant });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
+  }
+};
+
+export const updateTenantStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const result = await tenantService.updateTenantStatus(req.params.slug, status);
+    return successResponse({ res, message: `Tenant status updated to ${status}`, data: result });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
+  }
+};
+
+export const deleteTenant = async (req, res) => {
+  try {
+    const result = await tenantService.deleteTenant(req.params.slug);
+    return successResponse({ res, message: 'Tenant successfully deleted', data: result });
   } catch (error) {
     return errorResponse({ res, message: error.message, errors: error.errors || null, status: error.status || 500 });
   }

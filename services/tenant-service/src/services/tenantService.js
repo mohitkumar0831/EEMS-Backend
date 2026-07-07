@@ -3,7 +3,7 @@ import axios from 'axios';
 import Tenant from '../models/Tenant.js';
 import { generateSlug } from '../utils/slug.js';
 import { generateTempPassword } from '../utils/password.js';
-import { sendTenantRegisteredEvent, sendNotificationEvent } from '../utils/events.js';
+import { sendTenantRegisteredEvent, sendNotificationEvent, sendTenantDeletedEvent } from '../utils/events.js';
 
 /**
  * Builds a Mongo URI for a specific database by replacing the DB segment
@@ -136,7 +136,7 @@ export const getAllTenants = async (token) => {
 };
 
 export const getTenantsSummary = async (token) => {
-  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName createdAt').sort({ createdAt: -1 });
+  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName slug status createdAt').sort({ createdAt: -1 });
   
   let userCounts = {};
   try {
@@ -151,17 +151,76 @@ export const getTenantsSummary = async (token) => {
   }
 
   return tenants.map(t => ({
-    tenantId: t._id,
-    companyName: t.companyName,
-    createdAt: t.createdAt,
-    totalUsersCount: userCounts[t._id.toString()] || 0
+    id: t._id,
+    name: t.companyName,
+    slug: t.slug,
+    userCount: userCounts[t._id.toString()] || 0,
+    status: t.status,
+    createdAt: t.createdAt
   }));
 };
+
+export const getCompanyAdmins = async () => {
+  const tenants = await Tenant.find({ isDeleted: false }).select('_id adminName adminEmail companyName industryType').sort({ createdAt: -1 });
+  
+  return tenants.map(t => ({
+    id: t._id,
+    name: t.adminName,
+    email: t.adminEmail,
+    companyName: t.companyName,
+    department: t.industryType,
+    role: 'CompanyAdmin'
+  }));
+};
+
 
 export const getTenantBySlug = async (slug) => {
   const tenant = await Tenant.findOne({ slug, isDeleted: false }).select('-__v');
   if (!tenant) throw { status: 404, message: 'Tenant not found' };
   return tenant;
+};
+
+export const updateTenantStatus = async (slug, status) => {
+  const tenant = await Tenant.findOne({ slug, isDeleted: false });
+  if (!tenant) throw { status: 404, message: 'Tenant not found' };
+
+  if (!['Active', 'Inactive', 'Suspended'].includes(status)) {
+    throw { status: 400, message: 'Invalid status value' };
+  }
+
+  tenant.status = status;
+  tenant.isActive = status === 'Active';
+  await tenant.save();
+
+  return { id: tenant._id, slug: tenant.slug, status: tenant.status, isActive: tenant.isActive };
+};
+
+export const deleteTenant = async (slug) => {
+  const tenant = await Tenant.findOne({ slug });
+  if (!tenant) throw { status: 404, message: 'Tenant not found' };
+
+  // 1. Drop the dedicated tenant database
+  try {
+    const uri = buildTenantDbUri(slug);
+    const conn = await mongoose.createConnection(uri).asPromise();
+    await conn.dropDatabase();
+    await conn.close();
+    console.log(`Successfully dropped database for tenant: ${slug}`);
+  } catch (err) {
+    console.error(`Failed to drop database for tenant ${slug}:`, err);
+    // Proceed to delete the document and emit event even if dropping fails
+  }
+
+  // 2. Permanently delete the tenant document from the main database
+  await Tenant.deleteOne({ slug });
+
+  // 3. Notify auth-service and user-service to wipe all associated users
+  await sendTenantDeletedEvent({
+    tenantId: tenant._id.toString(),
+    slug: tenant.slug
+  });
+
+  return { id: tenant._id, slug: tenant.slug, isDeleted: true };
 };
 
 export const validateTenant = async (tenantId, tenantSlug) => {
