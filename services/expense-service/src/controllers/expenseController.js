@@ -234,3 +234,12 @@ export const getManagerDashboard = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getEmployeeDashboard = async (req, res, next) => {
+  try {
+    const metrics = await expenseService.getEmployeeDashboardMetrics(req.tenant, req.params.employeeId);
+    res.status(200).json({ success: true, data: metrics });
+  } catch (error) {
+    next(error);
+  }
+};

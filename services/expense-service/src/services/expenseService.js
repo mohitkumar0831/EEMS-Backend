@@ -318,6 +318,60 @@ export const verifyRazorpayPayment = async (tenantContext, expenseId, verificati
   return expense.populate('receiptId');
 };
 
+// ─── Get Employee Dashboard Metrics ───────────────────────────────────────────
+export const getEmployeeDashboardMetrics = async (tenantContext, employeeId) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  const expenses = await Expense.find({ employeeId }).sort({ createdAt: -1 }).lean();
+
+  let totalClaims = expenses.length;
+  let pendingClaimsCount = 0;
+  let approvedClaimsCount = 0;
+  let totalReimbursed = 0;
+  let flaggedClaimsCount = 0;
+  const personalCategorySpend = {};
+
+  for (const exp of expenses) {
+    if (['Pending', 'Submitted', 'Under Review'].includes(exp.status)) {
+      pendingClaimsCount++;
+    }
+    if (['Approved', 'Manager Approved', 'Finance Approved'].includes(exp.status)) {
+      approvedClaimsCount++;
+    }
+    if (exp.status === 'Paid') {
+      totalReimbursed += (exp.amount || 0);
+    }
+    if (['Under Review', 'Audit Failed', 'Flagged'].includes(exp.status)) {
+      flaggedClaimsCount++;
+    }
+    if (['Approved', 'Manager Approved', 'Finance Approved', 'Paid'].includes(exp.status)) {
+      personalCategorySpend[exp.category] = (personalCategorySpend[exp.category] || 0) + (exp.amount || 0);
+    }
+  }
+
+  const recentClaims = expenses.slice(0, 4);
+
+  // Mocking policies and travel for now as they are not implemented in models
+  const policies = [
+    { id: 'pol-1', tenantId: tenantContext.id, category: 'Meals', limit: 100, rule: 'Dining rules' },
+    { id: 'pol-2', tenantId: tenantContext.id, category: 'Travel', limit: 1500, rule: 'Accommodation/Tickets limit' }
+  ];
+  const recentTravel = [];
+
+  return {
+    totalClaims,
+    pendingClaimsCount,
+    approvedClaimsCount,
+    totalReimbursed,
+    flaggedClaimsCount,
+    personalCategorySpend,
+    recentClaims,
+    recentTravel,
+    policies
+  };
+};
+
 // ─── Get Manager Dashboard Metrics ────────────────────────────────────────────
 export const getManagerDashboardMetrics = async (tenantContext, managerId) => {
   const { dbName } = tenantContext;
