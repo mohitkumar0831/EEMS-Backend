@@ -6,6 +6,7 @@ import { parseReceiptText } from '../utils/receiptParser.js';
 import { publishEvent } from '../config/rabbitmq.js';
 import { createOrder, verifySignature, generatePayoutReceipt } from './payoutService.js';
 import { v2 as cloudinary } from 'cloudinary';
+import axios from 'axios';
 
 const uploadToCloudinary = (buffer, retries = 3) => {
   return new Promise((resolve, reject) => {
@@ -136,6 +137,29 @@ export const getExpensesByEmployee = async (tenantContext, employeeId) => {
   return Expense.find({ employeeId }).populate('receiptId').sort({ createdAt: -1 });
 };
 
+// ─── Get Employee Reimbursement Summary ─────────────────────────────────────
+export const getEmployeeReimbursementSummary = async (tenantContext, employeeId) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+  getTenantModel(dbName, 'Receipt', receiptSchema);
+
+  const expenses = await Expense.find({ employeeId }).populate('receiptId').sort({ createdAt: -1 });
+
+  const totalReimbursed = expenses
+    .filter(e => e.status === 'Paid')
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const pendingAmount = expenses
+    .filter(e => !['Paid', 'Rejected'].includes(e.status))
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  return {
+    totalReimbursed,
+    pendingAmount,
+    expenses
+  };
+};
+
 // ─── Get Expenses for Manager Approval ──────────────────────────────────────
 export const getExpensesForManager = async (tenantContext, managerId, filters = {}) => {
   const { dbName } = tenantContext;
@@ -255,8 +279,8 @@ export const createRazorpayOrder = async (tenantContext, expenseId, actionBy) =>
   }
 
   // Check if expense is in a valid state to be paid
-  if (!['Manager Approved', 'Finance Approved'].includes(expense.status)) {
-    throw { status: 400, message: 'Expense must be Manager Approved or Finance Approved before payout' };
+  if (!['Manager Approved', 'Finance Approved', 'Submitted'].includes(expense.status)) {
+    throw { status: 400, message: 'Expense must be Manager Approved, Finance Approved, or Submitted before payout' };
   }
 
   // Generate a receipt ID placeholder or use mongo ID
@@ -594,23 +618,56 @@ export const getAdminDashboardMetrics = async (tenantContext) => {
     }
   }
 
+  let employeeMap = {};
+  try {
+    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:4300';
+    const res = await axios.get(`${userServiceUrl}/api/v1/users/tenant/${tenantContext.slug}/employees`, {
+      headers: {
+        'x-tenant-id': tenantContext.id || '',
+        'x-tenant-slug': tenantContext.slug || '',
+        'x-tenant-db': tenantContext.dbName || ''
+      }
+    });
+    if (res.data && res.data.success) {
+      for (const emp of res.data.data) {
+        employeeMap[emp._id || emp.id] = emp;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch employees for dashboard metrics:', err.message);
+  }
+
   // Top Expenses
   const topExpenses = [...expenses]
     .sort((a, b) => (b.amount || 0) - (a.amount || 0))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(e => {
+      const empIdStr = e.employeeId ? e.employeeId.toString() : '';
+      const emp = employeeMap[empIdStr] || {};
+      return {
+        ...e,
+        employeeName: emp.firstName ? `${emp.firstName} ${emp.lastName}` : (emp.name || 'Unknown'),
+        employeeRole: emp.role || 'Employee'
+      };
+    });
 
   // Pending Approvals
   const pendingApprovals = expenses
     .filter(e => ['Pending', 'Submitted', 'Manager Approved', 'Under Review'].includes(e.status))
     .sort((a, b) => new Date(b.createdAt || new Date()) - new Date(a.createdAt || new Date()))
     .slice(0, 5)
-    .map(e => ({
-      type: 'Expense Claim',
-      id: e._id,
-      employeeId: e.employeeId,
-      submittedOn: e.date || e.createdAt,
-      amount: e.amount
-    }));
+    .map(e => {
+      const empIdStr = e.employeeId ? e.employeeId.toString() : '';
+      const emp = employeeMap[empIdStr] || {};
+      return {
+        type: 'Expense Claim',
+        id: e._id,
+        employeeId: e.employeeId,
+        employeeName: emp.firstName ? `${emp.firstName} ${emp.lastName}` : (emp.name || 'Unknown'),
+        submittedOn: e.date || e.createdAt,
+        amount: e.amount
+      };
+    });
 
   return {
     pendingClaims: pendingClaimsCount,

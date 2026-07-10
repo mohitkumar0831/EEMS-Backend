@@ -33,8 +33,13 @@ router.get('/summary', authenticate, authorize('super_admin'), getTenantsSummary
 // Get company admins — super_admin only
 router.get('/company-admins', authenticate, authorize('super_admin'), getCompanyAdmins);
 
-// Get a specific tenant by slug — super_admin only
-router.get('/:slug', authenticate, authorize('super_admin'), getTenantBySlug);
+// Get a specific tenant by slug — super_admin or users of that tenant
+router.get('/:slug', authenticate, (req, res, next) => {
+  if (req.user.role === 'super_admin' || req.user.tenantSlug === req.params.slug) {
+    return next();
+  }
+  return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
+}, getTenantBySlug);
 
 // Update a tenant's status (Pause/Resume) — super_admin only
 router.patch('/:slug/status', authenticate, authorize('super_admin'), updateTenantStatus);

@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createExpense,
   getExpensesByEmployee,
+  getEmployeeReimbursementSummary,
   getExpensesForManager,
   getExpenseById,
   updateExpenseStatus,
@@ -59,8 +60,11 @@ router.post('/tenant/:slug', validateRequest(createExpenseSchema), createExpense
 // Get all expenses (admin/finance — with optional query filters ?status=&employeeId=&category=)
 router.get('/tenant/:slug', getAllExpenses);
 
-// Get expenses by employee
+// GET employee's own expenses
 router.get('/tenant/:slug/employee/:employeeId', getExpensesByEmployee);
+
+// GET employee reimbursement summary
+router.get('/tenant/:slug/employee/:employeeId/reimbursements/summary', getEmployeeReimbursementSummary);
 
 // Get expenses pending for a manager
 router.get('/tenant/:slug/manager/:managerId', getExpensesForManager);

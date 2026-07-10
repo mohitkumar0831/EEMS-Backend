@@ -88,6 +88,9 @@ export const registerTenant = async (payload, registeredBy) => {
     adminName: payload.adminName,
     tempPassword,
     dbName,
+    companyName: payload.companyName,
+    subscriptionPlan: payload.subscriptionPlan || 'Free',
+    billingCycle: payload.billingCycle || 'Monthly',
   });
 
   // 7. Notify notification-service to send welcome email

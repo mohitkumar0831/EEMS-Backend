@@ -11,10 +11,10 @@ const signToken = (payload, secret, expiresIn) => jwt.sign(payload, secret, { ex
  * Creates a company_admin user in the auth DB with the tenant's hashed temp password.
  */
 export const createCompanyAdmin = async ({ tenantId, tenantSlug, adminEmail, adminName, tempPassword }) => {
-  const existing = await User.findOne({ email: adminEmail });
+  const existing = await User.findOne({ email: adminEmail, tenantSlug });
   if (existing) {
     // eslint-disable-next-line no-console
-    console.warn(`[Auth] company_admin for ${adminEmail} already exists — skipping.`);
+    console.warn(`[Auth] company_admin for ${adminEmail} already exists in ${tenantSlug} — skipping.`);
     return;
   }
   const hashedPassword = await hashPassword(tempPassword);
@@ -37,7 +37,7 @@ export const createCompanyAdmin = async ({ tenantId, tenantSlug, adminEmail, adm
  * Creates an auth user with the employee's role and the provided password.
  */
 export const createEmployeeUser = async ({ tenantId, tenantSlug, employeeId, email, name, role, password }) => {
-  const existing = await User.findOne({ email });
+  const existing = await User.findOne({ email, tenantSlug });
   if (existing) {
     // eslint-disable-next-line no-console
     console.warn(`[Auth] User for ${email} already exists — skipping.`);
@@ -111,6 +111,27 @@ export const tenantLogin = async (slug, { email, password }) => {
       tenantId: user.tenantId,
       tenantSlug: user.tenantSlug,
     },
+  };
+};
+
+/**
+ * Returns the company_admin user for a given tenant slug.
+ * Used by Manager/Finance/Auditor to route expenses to CompanyAdmin.
+ */
+export const getCompanyAdminBySlug = async (slug) => {
+  const admin = await User.findOne({ tenantSlug: slug, role: 'company_admin', isDeleted: false, isActive: true })
+    .select('_id name email tenantId tenantSlug role');
+  if (!admin) {
+    throw { status: 404, message: 'Company Admin not found for this tenant' };
+  }
+  return {
+    _id: admin._id,
+    id: admin._id,
+    name: admin.name,
+    email: admin.email,
+    role: 'company_admin',
+    tenantId: admin.tenantId,
+    tenantSlug: admin.tenantSlug,
   };
 };
 

@@ -10,6 +10,7 @@ import {
   getDashboardStats,
   getTenantUserCounts,
   requestTenantPasswordReset,
+  getCompanyAdmin,
 } from '../controllers/authController.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import {
@@ -59,5 +60,8 @@ router.post('/forgot-password', validateRequest(forgotPasswordSchema), requestPa
 router.post('/tenant/:slug/forgot-password', validateRequest(forgotPasswordSchema), requestTenantPasswordReset);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
 router.post('/change-password', authenticate, validateRequest(changePasswordSchema), changePassword);
+
+// Get company admin for a tenant — accessible to any authenticated tenant user
+router.get('/tenant/:slug/company-admin', authenticate, getCompanyAdmin);
 
 export default router;

@@ -74,6 +74,20 @@ export const getExpensesByEmployee = async (req, res, next) => {
   }
 };
 
+// GET /expenses/employee/:employeeId/reimbursements/summary
+export const getEmployeeReimbursementSummary = async (req, res, next) => {
+  try {
+    const summary = await expenseService.getEmployeeReimbursementSummary(req.tenant, req.params.employeeId);
+    res.status(200).json({
+      success: true,
+      message: 'Employee reimbursement summary retrieved successfully',
+      data: summary,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /expenses/manager/:managerId — Manager views pending approvals
 export const getExpensesForManager = async (req, res, next) => {
   try {

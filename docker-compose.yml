@@ -36,6 +36,8 @@ services:
       - TENANT_SERVICE_URL=http://tenant-service:4200
       - USER_SERVICE_URL=http://user-service:4300
       - EXPENSE_SERVICE_URL=http://expense-service:4400
+      - BILLING_SERVICE_URL=http://billing-service:4800
+      - AUDIT_SERVICE_URL=http://audit-service:4900
     depends_on:
       - redis
       - rabbitmq
@@ -43,6 +45,8 @@ services:
       - tenant-service
       - user-service
       - expense-service
+      - billing-service
+      - audit-service
 
   auth-service:
     build: ./services/auth-service
@@ -163,3 +167,38 @@ services:
     depends_on:
       - redis
       - rabbitmq
+
+  billing-service:
+    build: ./services/billing-service
+    container_name: ems-billing-service
+    env_file: .env
+    ports:
+      - '4800:4800'
+    environment:
+      - NODE_ENV=production
+      - PORT=4800
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-billing?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+
+  audit-service:
+    build: ./services/audit-service
+    container_name: ems-audit-service
+    env_file: .env
+    ports:
+      - '4900:4900'
+    environment:
+      - NODE_ENV=production
+      - PORT=4900
+      - MONGO_URI=mongodb+srv://mohitkumar_db_user:fBG482uIaCX7yIGd@eems.trku1ng.mongodb.net/ems-audit?appName=EEMS
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - rabbitmq
+

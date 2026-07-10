@@ -93,3 +93,13 @@ export const getTenantUserCounts = async (req, res) => {
     return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
   }
 };
+
+export const getCompanyAdmin = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const admin = await authService.getCompanyAdminBySlug(slug);
+    return successResponse({ res, message: 'Company Admin retrieved successfully', data: admin });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, errors: error.errors, status: error.status || 500 });
+  }
+};

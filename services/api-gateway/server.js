@@ -12,6 +12,9 @@ import tenantProxy from './src/routes/tenantProxy.js';
 import userProxy from './src/routes/userProxy.js';
 import expenseProxy from './src/routes/expenseProxy.js';
 import dashboardRoute from './src/routes/dashboard.js';
+import reportsRoute from './src/routes/reports.js';
+import billingProxy from './src/routes/billingProxy.js';
+import auditProxy from './src/routes/auditProxy.js';
 
 dotenv.config();
 
@@ -35,6 +38,9 @@ app.use('/api/v1/dashboard', dashboardRoute);
 app.use('/api/v1/tenants', tenantProxy);
 app.use('/api/v1/users', tenantValidation, userProxy);
 app.use('/api/v1/expenses', tenantValidation, expenseProxy);
+app.use('/api/v1/reports', tenantValidation, reportsRoute);
+app.use('/api/v1/billing', billingProxy);
+app.use('/api/v1/audit', auditProxy);
 
 app.use(errorHandler);
 
