@@ -4,9 +4,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import connectDB from './src/config/db.js';
 import connectRedis from './src/config/redis.js';
 import { connectRabbitMQ } from './src/config/rabbitmq.js';
 import notificationListener from './src/listeners/notificationListener.js';
+import notificationRoutes from './src/routes/notificationRoutes.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
 import { initSocketServer } from './src/socket/socketServer.js';
 
@@ -23,9 +25,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined'));
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'Notification service healthy' }));
+app.use('/api/v1/notifications', notificationRoutes);
 app.use(errorHandler);
 
 const start = async () => {
+  await connectDB();
   await connectRedis();
   await connectRabbitMQ();
   await notificationListener();

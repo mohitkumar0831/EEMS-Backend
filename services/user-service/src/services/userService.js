@@ -19,11 +19,30 @@ const PROFILE_MAP = {
 
 const SALT_ROUNDS = 10;
 
+// Plan-based user limits (must match billing-service seed values)
+const PLAN_USER_LIMITS = {
+  Free: 10,
+  Basic: 100,
+  Standard: 500,
+  Enterprise: 2000,
+};
+
 // ─── Create Employee ────────────────────────────────────────────────────────
 export const createEmployee = async (tenantContext, employeeData) => {
-  const { dbName, slug, id: tenantId } = tenantContext;
+  const { dbName, slug, id: tenantId, subscriptionPlan } = tenantContext;
 
   const User = getTenantModel(dbName, 'User', userSchema);
+
+  // ── Plan-based user limit check ──────────────────────────────────────────
+  const userLimit = PLAN_USER_LIMITS[subscriptionPlan] || PLAN_USER_LIMITS.Free;
+  const currentUserCount = await User.countDocuments({ status: { $ne: 'inactive' } });
+
+  if (currentUserCount >= userLimit) {
+    throw {
+      status: 403,
+      message: `User limit reached. Your ${subscriptionPlan || 'Free'} plan allows up to ${userLimit} users. You currently have ${currentUserCount} users. Please upgrade your subscription plan to add more users.`,
+    };
+  }
 
   // Check duplicate email
   const existing = await User.findOne({ email: employeeData.email });

@@ -185,3 +185,31 @@ export const getAllPayments = async (filters = {}) => {
     .sort({ createdAt: -1 })
     .limit(filters.limit || 100);
 };
+
+/**
+ * Get monthly payment volume for the specified year
+ */
+export const getMonthlyVolume = async (year) => {
+  const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
+
+  const result = await Payment.aggregate([
+    {
+      $match: {
+        status: 'Captured',
+        paidAt: { $gte: startDate, $lte: endDate }
+      }
+    },
+    {
+      $group: {
+        _id: { $month: "$paidAt" },
+        totalSpend: { $sum: "$totalAmount" }
+      }
+    },
+    {
+      $sort: { _id: 1 }
+    }
+  ]);
+
+  return result;
+};

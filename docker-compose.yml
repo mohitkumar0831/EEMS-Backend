@@ -201,4 +201,3 @@ services:
     depends_on:
       - redis
       - rabbitmq
-

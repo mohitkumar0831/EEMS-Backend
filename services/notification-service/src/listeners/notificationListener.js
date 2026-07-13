@@ -5,6 +5,7 @@ import { tenantWelcomeTemplate } from '../templates/tenantWelcome.js';
 import { passwordResetTemplate } from '../templates/passwordReset.js';
 import { tenantPasswordResetTemplate } from '../templates/tenantPasswordResetTemplate.js';
 import { userWelcomeTemplate } from '../templates/userWelcomeTemplate.js';
+import Notification from '../models/Notification.js';
 
 const notificationListener = async () => {
   // --- Tenant Welcome Email ---
@@ -64,26 +65,68 @@ const notificationListener = async () => {
     'notification.expense.created',
     'notification.expense_created_queue',
     async ({ tenantId, managerId, expenseId, employeeName, amount }) => {
-      console.log(`[Notification] Expense created by ${employeeName}, notifying manager ${managerId} and finance/auditors.`);
+      console.log(`[Notification] Expense created by ${employeeName}, saving to DB and broadcasting.`);
       
-      const payload = {
-        id: expenseId || Date.now(),
-        text: `New expense submitted by ${employeeName} for $${amount}`,
-        time: 'Just now',
-        type: 'expense_created'
-      };
-
-      // 1. Notify the direct manager
+      // 1. Save and Notify Direct Manager
       if (managerId) {
-        emitToUser(managerId, 'new_notification', payload);
+        try {
+          const dbNotif = await Notification.create({
+            tenantId,
+            userId: managerId,
+            text: `New expense submitted by ${employeeName} for ₹${amount}`,
+            type: 'expense_created'
+          });
+          emitToUser(managerId, 'new_notification', {
+            id: dbNotif._id,
+            text: dbNotif.text,
+            time: 'Just now',
+            type: dbNotif.type
+          });
+        } catch (err) {
+          console.error('Failed to persist manager notification:', err.message);
+        }
       }
-      // 2. Notify Auditors
-      emitToTenant(`${tenantId}_Auditor`, 'new_notification', payload);
-      emitToTenant(`${tenantId}_auditor`, 'new_notification', payload); // fallback
-      // 3. Notify Finance
-      emitToTenant(`${tenantId}_Finance Team`, 'new_notification', payload);
-      emitToTenant(`${tenantId}_Finance`, 'new_notification', payload);
-      emitToTenant(`${tenantId}_finance`, 'new_notification', payload); // fallback
+
+      // 2. Save and Notify Auditors
+      try {
+        const dbAuditor = await Notification.create({
+          tenantId,
+          role: 'Auditor',
+          text: `New expense submitted by ${employeeName} for ₹${amount}`,
+          type: 'expense_created'
+        });
+        const auditorPayload = {
+          id: dbAuditor._id,
+          text: dbAuditor.text,
+          time: 'Just now',
+          type: dbAuditor.type
+        };
+        emitToTenant(`${tenantId}_Auditor`, 'new_notification', auditorPayload);
+        emitToTenant(`${tenantId}_auditor`, 'new_notification', auditorPayload);
+      } catch (err) {
+        console.error('Failed to persist auditor notification:', err.message);
+      }
+
+      // 3. Save and Notify Finance
+      try {
+        const dbFinance = await Notification.create({
+          tenantId,
+          role: 'Finance Team',
+          text: `New expense submitted by ${employeeName} for ₹${amount}`,
+          type: 'expense_created'
+        });
+        const financePayload = {
+          id: dbFinance._id,
+          text: dbFinance.text,
+          time: 'Just now',
+          type: dbFinance.type
+        };
+        emitToTenant(`${tenantId}_Finance Team`, 'new_notification', financePayload);
+        emitToTenant(`${tenantId}_Finance`, 'new_notification', financePayload);
+        emitToTenant(`${tenantId}_finance`, 'new_notification', financePayload);
+      } catch (err) {
+        console.error('Failed to persist finance notification:', err.message);
+      }
     }
   );
 
@@ -97,36 +140,81 @@ const notificationListener = async () => {
       
       // Notify the employee who created it
       if (employeeId) {
-        emitToUser(employeeId, 'new_notification', {
-          id: expenseId + '_' + Date.now(),
-          text: `Your expense claim of $${amount} was marked as: ${status}`,
-          time: 'Just now',
-          type: 'expense_status_updated'
-        });
+        try {
+          const dbNotif = await Notification.create({
+            tenantId,
+            userId: employeeId,
+            text: `Your expense claim of ₹${amount} was marked as: ${status}`,
+            type: 'expense_status_updated'
+          });
+          emitToUser(employeeId, 'new_notification', {
+            id: dbNotif._id,
+            text: dbNotif.text,
+            time: 'Just now',
+            type: dbNotif.type
+          });
+        } catch (err) {
+          console.error('Failed to persist employee status notification:', err.message);
+        }
       }
       
       // If Manager Approved, notify Finance and Auditor
       if (status === 'Manager Approved') {
-        const payloadForFinance = {
-          id: expenseId + '_fin_' + Date.now(),
-          text: `A new expense ($${amount}) was approved by a manager and is ready for finance processing.`,
-          time: 'Just now',
-          type: 'expense_requires_processing'
-        };
-        emitToTenant(`${tenantId}_Finance Team`, 'new_notification', payloadForFinance);
-        emitToTenant(`${tenantId}_Finance`, 'new_notification', payloadForFinance);
-        emitToTenant(`${tenantId}_Auditor`, 'new_notification', payloadForFinance);
+        try {
+          const dbFinance = await Notification.create({
+            tenantId,
+            role: 'Finance Team',
+            text: `A new expense (₹${amount}) was approved by a manager and is ready for finance processing.`,
+            type: 'expense_requires_processing'
+          });
+          const financePayload = {
+            id: dbFinance._id,
+            text: dbFinance.text,
+            time: 'Just now',
+            type: dbFinance.type
+          };
+          emitToTenant(`${tenantId}_Finance Team`, 'new_notification', financePayload);
+          emitToTenant(`${tenantId}_Finance`, 'new_notification', financePayload);
+          emitToTenant(`${tenantId}_finance`, 'new_notification', financePayload);
+
+          const dbAuditor = await Notification.create({
+            tenantId,
+            role: 'Auditor',
+            text: `A new expense (₹${amount}) was approved by a manager and is ready for finance processing.`,
+            type: 'expense_requires_processing'
+          });
+          const auditorPayload = {
+            id: dbAuditor._id,
+            text: dbAuditor.text,
+            time: 'Just now',
+            type: dbAuditor.type
+          };
+          emitToTenant(`${tenantId}_Auditor`, 'new_notification', auditorPayload);
+          emitToTenant(`${tenantId}_auditor`, 'new_notification', auditorPayload);
+        } catch (err) {
+          console.error('Failed to persist manager-approved notification:', err.message);
+        }
       }
 
       // If Finance Approved/Paid, notify Manager too
       if (status === 'Finance Approved' || status === 'Paid') {
         if (managerId) {
-          emitToUser(managerId, 'new_notification', {
-            id: expenseId + '_mgr_' + Date.now(),
-            text: `An expense you approved ($${amount}) has been ${status}.`,
-            time: 'Just now',
-            type: 'expense_completed'
-          });
+          try {
+            const dbNotif = await Notification.create({
+              tenantId,
+              userId: managerId,
+              text: `An expense you approved (₹${amount}) has been ${status}.`,
+              type: 'expense_completed'
+            });
+            emitToUser(managerId, 'new_notification', {
+              id: dbNotif._id,
+              text: dbNotif.text,
+              time: 'Just now',
+              type: dbNotif.type
+            });
+          } catch (err) {
+            console.error('Failed to persist finance status notification:', err.message);
+          }
         }
       }
     }

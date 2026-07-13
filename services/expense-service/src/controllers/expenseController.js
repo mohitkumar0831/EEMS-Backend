@@ -233,7 +233,8 @@ export const getAdminDashboard = async (req, res, next) => {
 
 export const getDashboardStats = async (req, res, next) => {
   try {
-    const stats = await expenseService.getDashboardStats();
+    const authHeader = req.headers.authorization;
+    const stats = await expenseService.getDashboardStats(authHeader);
     res.status(200).json({ success: true, data: stats });
   } catch (error) {
     next(error);

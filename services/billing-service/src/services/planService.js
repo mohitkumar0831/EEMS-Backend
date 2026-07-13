@@ -77,9 +77,6 @@ export const deactivatePlan = async (planId) => {
  * Seed default plans if none exist
  */
 export const seedDefaultPlans = async () => {
-  const count = await SubscriptionPlan.countDocuments();
-  if (count > 0) return;
-
   const defaults = [
     {
       name: 'Free',
@@ -127,6 +124,12 @@ export const seedDefaultPlans = async () => {
     },
   ];
 
-  await SubscriptionPlan.insertMany(defaults);
+  for (const plan of defaults) {
+    const existing = await SubscriptionPlan.findOne({ name: plan.name });
+    if (!existing) {
+      await SubscriptionPlan.create(plan);
+    }
+  }
+
   console.log('Default subscription plans seeded');
 };

@@ -241,7 +241,9 @@ export const validateTenant = async (tenantId, tenantSlug) => {
     id: tenant._id,
     slug: tenant.slug,
     dbName: tenant.dbName,
-    companyName: tenant.companyName
+    companyName: tenant.companyName,
+    subscriptionPlan: tenant.subscriptionPlan,
+    employeeCapacity: tenant.employeeCapacity,
   };
 };
 

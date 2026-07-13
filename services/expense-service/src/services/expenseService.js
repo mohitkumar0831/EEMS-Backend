@@ -425,7 +425,7 @@ export const getManagerDashboardMetrics = async (tenantContext, managerId) => {
     budgetUtilized,
     categorySpend,
     pendingTravelCount: 0, // Mocked for now since no travel service exists
-    pendingTravel: [] 
+    pendingTravel: []
   };
 };
 
@@ -683,13 +683,64 @@ export const getAdminDashboardMetrics = async (tenantContext) => {
   };
 };
 
-export const getDashboardStats = async () => {
+export const getDashboardStats = async (authHeader) => {
+  let totalSpend = 0;
+  let totalClaims = 0;
+  let pendingClaims = 0;
+  let approvedClaims = 0;
+  let flaggedClaims = 0;
+  const categorySpend = {};
+
+  try {
+    const tenantServiceUrl = process.env.TENANT_SERVICE_URL || 'http://localhost:4000';
+    const config = authHeader ? { headers: { Authorization: authHeader } } : {};
+
+    // Fetch all active tenants
+    const res = await axios.get(`${tenantServiceUrl}/api/v1/tenants`, config);
+
+    if (res.data && res.data.success && res.data.data) {
+      const tenants = res.data.data;
+
+      for (const tenant of tenants) {
+        if (!tenant.dbName) continue;
+
+        try {
+          const Expense = getTenantModel(tenant.dbName, 'Expense', expenseSchema);
+          const expenses = await Expense.find({}).lean();
+
+          for (const exp of expenses) {
+            totalClaims++;
+            const amount = exp.amount || 0;
+
+            if (['Pending', 'Submitted', 'Manager Approved', 'Under Review'].includes(exp.status)) {
+              pendingClaims++;
+            }
+            if (['Approved', 'Finance Approved'].includes(exp.status)) {
+              approvedClaims++;
+            }
+            if (['Flagged', 'Audit Failed', 'Under Review'].includes(exp.status)) {
+              flaggedClaims++;
+            }
+            if (['Approved', 'Paid', 'Audit Cleared', 'Audit Failed', 'Flagged'].includes(exp.status)) {
+              totalSpend += amount;
+              categorySpend[exp.category] = (categorySpend[exp.category] || 0) + amount;
+            }
+          }
+        } catch (dbErr) {
+          console.error(`Failed to aggregate stats for tenant DB: ${tenant.dbName}`, dbErr.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch tenants for global dashboard stats:', err.message);
+  }
+
   return {
-    totalSpend: 0,
-    totalClaims: 0,
-    pendingClaims: 0,
-    approvedClaims: 0,
-    flaggedClaims: 0,
-    categorySpend: {}
+    totalSpend,
+    totalClaims,
+    pendingClaims,
+    approvedClaims,
+    flaggedClaims,
+    categorySpend
   };
 };

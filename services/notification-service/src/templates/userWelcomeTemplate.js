@@ -3,9 +3,9 @@
  */
 export const userWelcomeTemplate = ({ name, email, role, tenantSlug, password }) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const loginUrl = `${frontendUrl}/tenant/${tenantSlug}/login`;
+  const loginUrl = `${frontendUrl}/${tenantSlug}`;
   const companyName = tenantSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  
+
   return {
     subject: `Welcome to ${companyName} — Your account is ready`,
     html: `<!DOCTYPE html>
@@ -54,6 +54,10 @@ export const userWelcomeTemplate = ({ name, email, role, tenantSlug, password })
         <div class="card-row">
           <div class="card-label">Company Slug</div>
           <div class="card-value">${tenantSlug}</div>
+        </div>
+        <div class="card-row">
+          <div class="card-label">Login URL</div>
+          <div class="card-value"><a href="${loginUrl}" style="color: #4f46e5; word-break: break-all;">${loginUrl}</a></div>
         </div>
         <div class="card-row">
           <div class="card-label">Your Role</div>

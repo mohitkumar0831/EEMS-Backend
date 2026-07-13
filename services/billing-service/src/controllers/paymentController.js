@@ -64,3 +64,13 @@ export const downloadInvoice = async (req, res) => {
     return errorResponse({ res, message: error.message, status: error.status || 500 });
   }
 };
+
+export const getMonthlyVolume = async (req, res) => {
+  try {
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const result = await paymentService.getMonthlyVolume(year);
+    return successResponse({ res, message: 'Monthly payment volume retrieved', data: result });
+  } catch (error) {
+    return errorResponse({ res, message: error.message, status: error.status || 500 });
+  }
+};

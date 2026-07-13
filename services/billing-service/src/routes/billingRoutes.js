@@ -34,6 +34,7 @@ router.patch('/subscriptions/:id/override', authenticate, authorize('super_admin
 router.post('/payments/create-order', authenticate, authorize('company_admin'), validateRequest(createOrderSchema), paymentController.createOrder);
 router.post('/payments/verify', authenticate, authorize('company_admin'), paymentController.verifyPayment);
 router.get('/payments', authenticate, authorize('super_admin'), paymentController.getAllPayments);
+router.get('/payments/monthly-volume', authenticate, authorize('super_admin'), paymentController.getMonthlyVolume);
 router.get('/payments/tenant/:tenantId', authenticate, paymentController.getPaymentHistory);
 
 // ─── Invoice Routes ────────────────────────────────

@@ -25,6 +25,7 @@ const tenantValidation = async (req, res, next) => {
       req.headers['x-tenant-db'] = req.tenant.dbName;
       req.headers['x-tenant-slug'] = req.tenant.slug;
       if (req.tenant.id) req.headers['x-tenant-id'] = req.tenant.id.toString();
+      if (req.tenant.subscriptionPlan) req.headers['x-tenant-plan'] = req.tenant.subscriptionPlan;
       return next();
     }
     return errorResponse({ res, message: result.data.message || 'Tenant validation failed', status: 401 });
