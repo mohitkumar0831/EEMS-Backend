@@ -160,6 +160,42 @@ export const getEmployeeReimbursementSummary = async (tenantContext, employeeId)
   };
 };
 
+// ─── Get Total Reimbursed For Employee ──────────────────────────────────────
+export const getTotalReimbursedForEmployee = async (tenantContext, employeeId) => {
+  const { dbName } = tenantContext;
+  const Expense = getTenantModel(dbName, 'Expense', expenseSchema);
+
+  // Fetch all expenses for the employee
+  const allExpenses = await Expense.find({ employeeId }).lean();
+  
+  // Filter for paid expenses (case-insensitive) or those that have progressed beyond Paid
+  const paidExpenses = allExpenses.filter(exp => {
+    const status = (exp.status || '').trim().toLowerCase();
+    
+    // If current status is one of the post-payment statuses
+    if (['paid', 'audited', 'audit failed', 'flagged'].includes(status)) {
+      return true;
+    }
+    
+    // Or if it was ever marked as 'Paid' in the action history
+    if (exp.actionHistory && Array.isArray(exp.actionHistory)) {
+      return exp.actionHistory.some(history => (history.status || '').trim().toLowerCase() === 'paid');
+    }
+    
+    return false;
+  });
+  
+  const totalReimbursed = paidExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+
+  // Return the total amount, the list of paid expenses, and all expenses for transparency
+  return { 
+    totalReimbursed, 
+    paidExpenses,
+    allExpenses // Included so the client can verify the current status of all their claims
+  };
+};
+
+
 // ─── Get Expenses for Manager Approval ──────────────────────────────────────
 export const getExpensesForManager = async (tenantContext, managerId, filters = {}) => {
   const { dbName } = tenantContext;
@@ -353,24 +389,52 @@ export const getEmployeeDashboardMetrics = async (tenantContext, employeeId) => 
   let pendingClaimsCount = 0;
   let approvedClaimsCount = 0;
   let totalReimbursed = 0;
+  let totalReimbursedCount = 0;
   let flaggedClaimsCount = 0;
   const personalCategorySpend = {};
+  const monthlyCategorySpend = {};
 
   for (const exp of expenses) {
-    if (['Pending', 'Submitted', 'Under Review'].includes(exp.status)) {
+    const status = (exp.status || '').trim().toLowerCase();
+    
+    if (['pending', 'submitted', 'under review'].includes(status)) {
       pendingClaimsCount++;
     }
-    if (['Approved', 'Manager Approved', 'Finance Approved'].includes(exp.status)) {
+    if (['approved', 'manager approved', 'finance approved'].includes(status)) {
       approvedClaimsCount++;
     }
-    if (exp.status === 'Paid') {
-      totalReimbursed += (exp.amount || 0);
+    
+    // Check if it's currently paid/post-paid or if it was ever marked as 'Paid' in history
+    let isPaid = false;
+    if (['paid', 'audited', 'audit failed', 'flagged'].includes(status)) {
+      isPaid = true;
+    } else if (exp.actionHistory && Array.isArray(exp.actionHistory)) {
+      isPaid = exp.actionHistory.some(history => (history.status || '').trim().toLowerCase() === 'paid');
     }
-    if (['Under Review', 'Audit Failed', 'Flagged'].includes(exp.status)) {
+
+    if (isPaid) {
+      totalReimbursed += (exp.amount || 0);
+      totalReimbursedCount++;
+    }
+
+    if (['under review', 'audit failed', 'flagged'].includes(status)) {
       flaggedClaimsCount++;
     }
-    if (['Approved', 'Manager Approved', 'Finance Approved', 'Paid'].includes(exp.status)) {
+    
+    if (['approved', 'manager approved', 'finance approved'].includes(status) || isPaid) {
       personalCategorySpend[exp.category] = (personalCategorySpend[exp.category] || 0) + (exp.amount || 0);
+      
+      // Calculate monthly category spend
+      const dateToUse = exp.date || exp.createdAt || new Date();
+      const dateObj = new Date(dateToUse);
+      const year = dateObj.getFullYear();
+      const month = dateObj.toLocaleString('default', { month: 'short' });
+      const key = `${month} ${year}`;
+      
+      if (!monthlyCategorySpend[key]) {
+        monthlyCategorySpend[key] = {};
+      }
+      monthlyCategorySpend[key][exp.category] = (monthlyCategorySpend[key][exp.category] || 0) + (exp.amount || 0);
     }
   }
 
@@ -388,8 +452,10 @@ export const getEmployeeDashboardMetrics = async (tenantContext, employeeId) => 
     pendingClaimsCount,
     approvedClaimsCount,
     totalReimbursed,
+    totalReimbursedCount,
     flaggedClaimsCount,
     personalCategorySpend,
+    monthlyCategorySpend,
     recentClaims,
     recentTravel,
     policies
@@ -404,28 +470,60 @@ export const getManagerDashboardMetrics = async (tenantContext, managerId) => {
   const expenses = await Expense.find({ assignedManagerId: managerId }).lean();
 
   let pendingExpensesCount = 0;
+  let approvedClaimsCount = 0;
+  let totalReimbursedCount = 0;
+  let totalReimbursedAmount = 0;
+  let auditedExpenseCount = 0;
   let budgetUtilized = 0;
   const categorySpend = {};
   const pendingExpenses = [];
 
   for (const exp of expenses) {
-    if (['Submitted', 'Pending', 'Under Review'].includes(exp.status)) {
+    const status = (exp.status || '').trim().toLowerCase();
+    
+    if (['submitted', 'pending', 'under review'].includes(status)) {
       pendingExpensesCount++;
       pendingExpenses.push(exp);
     }
-    if (['Manager Approved', 'Finance Approved', 'Paid', 'Audited'].includes(exp.status)) {
+    
+    if (['manager approved', 'finance approved'].includes(status)) {
+      approvedClaimsCount++;
+    }
+    
+    if (['audited', 'audit failed', 'flagged'].includes(status)) {
+      auditedExpenseCount++;
+    }
+    
+    let isPaid = false;
+    if (['paid', 'audited', 'audit failed', 'flagged'].includes(status)) {
+      isPaid = true;
+    } else if (exp.actionHistory && Array.isArray(exp.actionHistory)) {
+      isPaid = exp.actionHistory.some(history => (history.status || '').trim().toLowerCase() === 'paid');
+    }
+    
+    if (isPaid) {
+      totalReimbursedCount++;
+      totalReimbursedAmount += (exp.amount || 0);
+    }
+
+    if (['manager approved', 'finance approved', 'paid', 'audited'].includes(status) || isPaid) {
       budgetUtilized += (exp.amount || 0);
       categorySpend[exp.category] = (categorySpend[exp.category] || 0) + (exp.amount || 0);
     }
   }
 
   return {
+    totalClaims: expenses.length,
     pendingExpensesCount,
-    pendingExpenses,
+    approvedClaimsCount,
+    totalReimbursedCount,
+    totalReimbursedAmount,
+    auditedExpenseCount,
     budgetUtilized,
     categorySpend,
-    pendingTravelCount: 0, // Mocked for now since no travel service exists
-    pendingTravel: []
+    pendingExpenses: pendingExpenses
+      .sort((a, b) => new Date(b.submittedAt || b.createdAt) - new Date(a.submittedAt || a.createdAt))
+      .slice(0, 5) // Return top 5 pending
   };
 };
 
@@ -516,6 +614,8 @@ export const getAuditorDashboardMetrics = async (tenantContext) => {
   let policyViolationsCount = 0; // mapped from rejected/flagged
 
   let totalDisbursedAmount = 0;
+  let totalReimbursedCount = 0;
+  const categorySpend = {};
 
   for (const exp of expenses) {
     if (exp.employeeId) activeClaimantsSet.add(exp.employeeId.toString());
@@ -533,17 +633,25 @@ export const getAuditorDashboardMetrics = async (tenantContext) => {
     if (exp.status === 'Audited') {
       auditClearedCount++;
       totalDisbursedAmount += (exp.amount || 0);
+      totalReimbursedCount++;
     }
 
     if (exp.status === 'Paid') {
       awaitingAuditCount++;
       awaitingAuditAmount += (exp.amount || 0);
       totalDisbursedAmount += (exp.amount || 0);
+      totalReimbursedCount++;
     }
 
     // Add flagged claims to total disbursed since they were paid out before auditing
     if (exp.status === 'Audit Failed' || exp.status === 'Flagged') {
       totalDisbursedAmount += (exp.amount || 0);
+      totalReimbursedCount++;
+    }
+
+    // Category Spend
+    if (exp.category) {
+      categorySpend[exp.category] = (categorySpend[exp.category] || 0) + (exp.amount || 0);
     }
   }
 
@@ -558,7 +666,9 @@ export const getAuditorDashboardMetrics = async (tenantContext) => {
     auditCleared: { count: auditClearedCount },
     awaitingAudit: { count: awaitingAuditCount, amountToReview: awaitingAuditAmount },
     policyViolations: { count: policyViolationsCount },
-    totalDisbursed: { amount: totalDisbursedAmount }
+    totalDisbursed: { amount: totalDisbursedAmount },
+    totalReimbursedCount,
+    categorySpend
   };
 };
 

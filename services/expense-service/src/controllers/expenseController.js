@@ -88,6 +88,20 @@ export const getEmployeeReimbursementSummary = async (req, res, next) => {
   }
 };
 
+// GET /expenses/employee/:employeeId/total-reimbursed
+export const getTotalReimbursed = async (req, res, next) => {
+  try {
+    const data = await expenseService.getTotalReimbursedForEmployee(req.tenant, req.params.employeeId);
+    res.status(200).json({
+      success: true,
+      message: 'Total reimbursed amount retrieved successfully',
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /expenses/manager/:managerId — Manager views pending approvals
 export const getExpensesForManager = async (req, res, next) => {
   try {

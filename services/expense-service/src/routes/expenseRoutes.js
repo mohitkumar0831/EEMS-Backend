@@ -17,7 +17,8 @@ import {
   getAdminDashboard,
   getDashboardStats,
   getManagerDashboard,
-  getEmployeeDashboard
+  getEmployeeDashboard,
+  getTotalReimbursed
 } from '../controllers/expenseController.js';
 import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
@@ -65,6 +66,9 @@ router.get('/tenant/:slug/employee/:employeeId', getExpensesByEmployee);
 
 // GET employee reimbursement summary
 router.get('/tenant/:slug/employee/:employeeId/reimbursements/summary', getEmployeeReimbursementSummary);
+
+// GET employee total reimbursed amount
+router.get('/tenant/:slug/employee/:employeeId/total-reimbursed', getTotalReimbursed);
 
 // Get expenses pending for a manager
 router.get('/tenant/:slug/manager/:managerId', getExpensesForManager);
