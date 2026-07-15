@@ -1,7 +1,7 @@
 import { subscribeToQueue } from '../config/rabbitmq.js';
 import AuditLog from '../models/AuditLog.js';
 
-const EXCHANGE_NAME = 'eems_exchange';
+const EXCHANGE_NAME = 'ems.events';
 
 const eventToAuditMapper = (routingKey, payload) => {
   const log = {

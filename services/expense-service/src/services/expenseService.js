@@ -800,6 +800,7 @@ export const getDashboardStats = async (authHeader) => {
   let approvedClaims = 0;
   let flaggedClaims = 0;
   const categorySpend = {};
+  const tenantSpendMap = {};
 
   try {
     const tenantServiceUrl = process.env.TENANT_SERVICE_URL || 'http://localhost:4000';
@@ -813,6 +814,8 @@ export const getDashboardStats = async (authHeader) => {
 
       for (const tenant of tenants) {
         if (!tenant.dbName) continue;
+        
+        let currentTenantSpend = 0;
 
         try {
           const Expense = getTenantModel(tenant.dbName, 'Expense', expenseSchema);
@@ -833,9 +836,12 @@ export const getDashboardStats = async (authHeader) => {
             }
             if (['Approved', 'Paid', 'Audit Cleared', 'Audit Failed', 'Flagged'].includes(exp.status)) {
               totalSpend += amount;
+              currentTenantSpend += amount;
               categorySpend[exp.category] = (categorySpend[exp.category] || 0) + amount;
             }
           }
+          
+          tenantSpendMap[tenant._id.toString()] = currentTenantSpend;
         } catch (dbErr) {
           console.error(`Failed to aggregate stats for tenant DB: ${tenant.dbName}`, dbErr.message);
         }
@@ -851,6 +857,7 @@ export const getDashboardStats = async (authHeader) => {
     pendingClaims,
     approvedClaims,
     flaggedClaims,
-    categorySpend
+    categorySpend,
+    tenantSpendMap
   };
 };

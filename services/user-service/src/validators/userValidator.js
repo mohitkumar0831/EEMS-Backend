@@ -3,7 +3,7 @@ import Joi from 'joi';
 // ─── Profile sub-schemas ───────────────────────────────────────────────────
 const employeeProfileSchema = Joi.object({
   reportingManager: Joi.string().hex().length(24).optional().allow('', null),
-  expenseLimit: Joi.number().min(0).optional(),
+
   costCenter: Joi.string().optional().allow('', null),
   employmentType: Joi.string().valid('full-time', 'part-time', 'contract', 'intern').optional(),
   officeLocation: Joi.string().optional().allow('', null),
@@ -33,7 +33,7 @@ const auditorProfileSchema = Joi.object({
 export const createEmployeeSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(1).max(50).required(),
-  employeeId: Joi.string().required(),
+  employeeId: Joi.string().optional(),
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   phone: Joi.string().pattern(/^\+?[0-9\s\-().]{7,20}$/).optional().allow('', null),

@@ -83,7 +83,7 @@ const tenantSchema = new mongoose.Schema(
         enum: ['English', 'French', 'German', 'Spanish'],
         default: 'English'
       },
-      financialYearStart: { type: String, default: 'April' } // Example: 'April' or 'January'
+
     },
 
     // Status and System Fields
@@ -92,7 +92,7 @@ const tenantSchema = new mongoose.Schema(
       enum: ['Active', 'Inactive', 'Suspended'],
       default: 'Active',
     },
-    emailVerified: { type: Boolean, default: false },
+
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
     

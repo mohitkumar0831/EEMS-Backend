@@ -45,10 +45,10 @@ export const registerTenantSchema = Joi.object({
     currency: Joi.string().valid('USD', 'EUR', 'GBP', 'INR', 'AUD').optional(),
     dateFormat: Joi.string().valid('DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD').optional(),
     language: Joi.string().valid('English', 'French', 'German', 'Spanish').optional(),
-    financialYearStart: Joi.string().optional().allow('', null),
+
   }).optional(),
 
   // Status
   status: Joi.string().valid('Active', 'Inactive', 'Suspended').optional(),
-  emailVerified: Joi.boolean().optional(),
+
 });

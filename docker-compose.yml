@@ -115,6 +115,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
+      - TENANT_SERVICE_URL=http://tenant-service:4200
+      - USER_SERVICE_URL=http://user-service:4300
     depends_on:
       - redis
       - rabbitmq

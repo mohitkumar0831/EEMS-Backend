@@ -50,11 +50,9 @@ export const createEmployee = async (tenantContext, employeeData) => {
     throw { status: 409, message: 'An employee with this email already exists' };
   }
 
-  // Check duplicate employeeId
-  const existingId = await User.findOne({ employeeId: employeeData.employeeId });
-  if (existingId) {
-    throw { status: 409, message: 'An employee with this employee ID already exists' };
-  }
+  // Auto-generate Employee ID (e.g., EMP-01, EMP-02) based on total historical users
+  const totalUsersCount = await User.countDocuments();
+  employeeData.employeeId = `EMP-${String(totalUsersCount + 1).padStart(2, '0')}`;
 
   // Separate profile data from core user data
   const { profile, password, ...restData } = employeeData;

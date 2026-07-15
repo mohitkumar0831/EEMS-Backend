@@ -50,7 +50,7 @@ const employeeProfileSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
-    expenseLimit: { type: Number, default: 0 },
+
     costCenter: { type: String, default: null, trim: true },
     employmentType: {
       type: String,
