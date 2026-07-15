@@ -38,8 +38,11 @@ router.get('/tenant/:slug/spending', async (req, res, next) => {
     const employees = userRes.data || [];
     const expenses = expenseRes.data || [];
 
-    // Filter to only include active employees or those with expenses
-    const relevantEmployees = employees.filter(u => u.role === 'Employee' || u.role === 'manager' || u.role === 'finance' || u.role === 'auditor' || expenses.some(e => e.employeeId === u._id));
+    // Filter to include all roles or users with expenses
+    const relevantEmployees = employees.filter(u => {
+      const r = (u.role || '').toLowerCase();
+      return ['employee', 'manager', 'finance', 'auditor', 'company_admin', 'admin'].includes(r) || expenses.some(e => e.employeeId === (u._id || u.id));
+    });
 
     // Helper to generate deterministic employee ID if missing
     const getEmpId = (emp) => {
@@ -65,10 +68,13 @@ router.get('/tenant/:slug/spending', async (req, res, next) => {
       const empIdStr = emp._id || emp.id;
       const empExpenses = expenses.filter(e => e.employeeId === empIdStr);
       const approvedSpend = empExpenses
-        .filter(e => e.status === 'Approved' || e.status === 'Paid')
+        .filter(e => ['approved', 'paid', 'audited'].includes((e.status || '').toLowerCase()))
         .reduce((sum, e) => sum + (e.amount || 0), 0);
       const pendingSpend = empExpenses
-        .filter(e => e.status === 'Pending' || e.status === 'Under Review' || e.status === 'Manager Approved' || e.status === 'Finance Approved' || e.status === 'Submitted')
+        .filter(e => ['pending', 'under review', 'manager approved', 'finance approved', 'submitted'].includes((e.status || '').toLowerCase()))
+        .reduce((sum, e) => sum + (e.amount || 0), 0);
+      const disbursedSpend = empExpenses
+        .filter(e => ['paid', 'audited'].includes((e.status || '').toLowerCase()))
         .reduce((sum, e) => sum + (e.amount || 0), 0);
       const totalClaimsCount = empExpenses.length;
 
@@ -92,14 +98,19 @@ router.get('/tenant/:slug/spending', async (req, res, next) => {
         phone: getPhone(emp),
         approvedSpend,
         pendingSpend,
+        disbursedSpend,
+        totalReimbursed: disbursedSpend,
         totalClaimsCount,
         expenses: empExpenses
       };
     });
 
+    const totalSpending = employeeReportData.reduce((sum, item) => sum + item.disbursedSpend, 0);
+
     res.status(200).json({
       success: true,
       message: 'Spend report retrieved successfully',
+      totalSpending, // total amount paid by companyAdmin and finance
       data: employeeReportData
     });
 
