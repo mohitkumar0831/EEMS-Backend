@@ -11,6 +11,7 @@ export const createExpenseSchema = Joi.object({
   assignedManagerId: Joi.string().hex().length(24).optional().allow('', null),
   receiptId: Joi.string().hex().length(24).optional().allow('', null),
   policyId: Joi.string().hex().length(24).optional().allow('', null),
+  daysSpanned: Joi.number().integer().min(1).default(1).optional(),
   status: Joi.string()
     .valid('Draft', 'Submitted')
     .optional()

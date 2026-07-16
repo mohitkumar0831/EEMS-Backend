@@ -272,3 +272,43 @@ export const getEmployeeDashboard = async (req, res, next) => {
     next(error);
   }
 };
+
+// ─── Policy Management Controllers ──────────────────────────────────────────
+export const getPolicies = async (req, res, next) => {
+  try {
+    const policies = await expenseService.getTenantPolicies(req.tenant);
+    res.status(200).json({
+      success: true,
+      message: 'Policies retrieved successfully',
+      data: policies,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createOrUpdatePolicyCtrl = async (req, res, next) => {
+  try {
+    const policy = await expenseService.createOrUpdatePolicy(req.tenant, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Policy saved successfully',
+      data: policy,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePolicyByIdCtrl = async (req, res, next) => {
+  try {
+    const policy = await expenseService.updatePolicyById(req.tenant, req.params.id, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Policy updated successfully',
+      data: policy,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

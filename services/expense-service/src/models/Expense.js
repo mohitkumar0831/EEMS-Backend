@@ -23,6 +23,11 @@ const expenseSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    daysSpanned: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
 
     // ─── References ─────────────────────────────────────────────
     employeeId: {

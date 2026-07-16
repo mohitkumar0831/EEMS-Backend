@@ -1,6 +1,7 @@
 import { getTenantModel } from '../config/db.js';
 import { expenseSchema } from '../models/Expense.js';
 import { receiptSchema } from '../models/Receipt.js';
+import { expensePolicySchema } from '../models/ExpensePolicy.js';
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
 import { publishEvent } from '../config/rabbitmq.js';
@@ -860,4 +861,76 @@ export const getDashboardStats = async (authHeader) => {
     categorySpend,
     tenantSpendMap
   };
+};
+
+export const getTenantPolicies = async (tenantContext) => {
+  const { dbName } = tenantContext;
+  const ExpensePolicy = getTenantModel(dbName, 'ExpensePolicy', expensePolicySchema);
+  
+  let policies = await ExpensePolicy.find({});
+  
+  if (policies.length === 0) {
+    // Seed defaults if none exist
+    const defaultPolicies = [
+      { category: 'Meals', limit: 80, rule: 'Single meal limit' },
+      { category: 'Travel', limit: 1200, rule: 'Flight limit' },
+      { category: 'Equipment', limit: 500, rule: 'IT accessories limit' }
+    ];
+    policies = await ExpensePolicy.create(defaultPolicies);
+  }
+  
+  // Clean up any database-level duplicates if they somehow got inserted
+  const uniqueCategories = {};
+  const deduplicated = [];
+  let hasDuplicates = false;
+  
+  for (const policy of policies) {
+    const catLower = policy.category.toLowerCase();
+    if (!uniqueCategories[catLower]) {
+      uniqueCategories[catLower] = true;
+      deduplicated.push(policy);
+    } else {
+      hasDuplicates = true;
+      // Delete the duplicate from database
+      await ExpensePolicy.findByIdAndDelete(policy._id);
+    }
+  }
+  
+  return hasDuplicates ? deduplicated : policies;
+};
+
+export const createOrUpdatePolicy = async (tenantContext, policyData) => {
+  const { dbName } = tenantContext;
+  const ExpensePolicy = getTenantModel(dbName, 'ExpensePolicy', expensePolicySchema);
+  
+  const { category, limit, rule } = policyData;
+  
+  let policy = await ExpensePolicy.findOne({ category: { $regex: new RegExp(`^${category}$`, 'i') } });
+  
+  if (policy) {
+    policy.limit = limit;
+    policy.rule = rule || '';
+    await policy.save();
+  } else {
+    policy = await ExpensePolicy.create({ category, limit, rule });
+  }
+  
+  return policy;
+};
+
+export const updatePolicyById = async (tenantContext, policyId, updateData) => {
+  const { dbName } = tenantContext;
+  const ExpensePolicy = getTenantModel(dbName, 'ExpensePolicy', expensePolicySchema);
+  
+  const { limit, rule } = updateData;
+  const policy = await ExpensePolicy.findById(policyId);
+  if (!policy) {
+    throw new Error('Policy not found');
+  }
+  
+  if (limit !== undefined) policy.limit = limit;
+  if (rule !== undefined) policy.rule = rule;
+  
+  await policy.save();
+  return policy;
 };

@@ -18,7 +18,10 @@ import {
   getDashboardStats,
   getManagerDashboard,
   getEmployeeDashboard,
-  getTotalReimbursed
+  getTotalReimbursed,
+  getPolicies,
+  createOrUpdatePolicyCtrl,
+  updatePolicyByIdCtrl
 } from '../controllers/expenseController.js';
 import { createExpenseSchema, updateExpenseStatusSchema, createRazorpayOrderSchema, verifyRazorpayPaymentSchema } from '../validators/expenseValidator.js';
 import { tenantContext } from '../middlewares/tenantContext.js';
@@ -76,16 +79,6 @@ router.get('/tenant/:slug/manager/:managerId', getExpensesForManager);
 // Get payouts processed by a specific finance user
 router.get('/tenant/:slug/finance/:financeId/payouts', getPayoutsByFinanceUser);
 
-// Get single expense by ID
-router.get('/tenant/:slug/:id', getExpenseById);
-
-// Update expense status (manager/finance/auditor approval)
-router.patch('/tenant/:slug/:id/status', validateRequest(updateExpenseStatusSchema), updateExpenseStatus);
-
-// Process payout (finance team) - Razorpay Integration
-router.post('/tenant/:slug/:id/create-razorpay-order', validateRequest(createRazorpayOrderSchema), createRazorpayOrder);
-router.post('/tenant/:slug/:id/verify-razorpay-payment', validateRequest(verifyRazorpayPaymentSchema), verifyRazorpayPayment);
-
 // Finance Dashboard Metrics
 router.get('/tenant/:slug/finance/dashboard', getFinanceDashboard);
 
@@ -100,5 +93,22 @@ router.get('/tenant/:slug/manager/:managerId/dashboard', getManagerDashboard);
 
 // Employee Dashboard Metrics
 router.get('/tenant/:slug/employee/:employeeId/dashboard', getEmployeeDashboard);
+
+// ─── Expense Policy Management ──────────────────────────────────────────────
+router.get('/tenant/:slug/policies', getPolicies);
+router.post('/tenant/:slug/policies', createOrUpdatePolicyCtrl);
+router.patch('/tenant/:slug/policies/:id', updatePolicyByIdCtrl);
+
+// ─── Wildcard / Parameter Routes (Must be at the bottom) ───────────────────
+
+// Get single expense by ID
+router.get('/tenant/:slug/:id', getExpenseById);
+
+// Update expense status (manager/finance/auditor approval)
+router.patch('/tenant/:slug/:id/status', validateRequest(updateExpenseStatusSchema), updateExpenseStatus);
+
+// Process payout (finance team) - Razorpay Integration
+router.post('/tenant/:slug/:id/create-razorpay-order', validateRequest(createRazorpayOrderSchema), createRazorpayOrder);
+router.post('/tenant/:slug/:id/verify-razorpay-payment', validateRequest(verifyRazorpayPaymentSchema), verifyRazorpayPayment);
 
 export default router;
