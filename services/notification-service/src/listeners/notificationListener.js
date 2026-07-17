@@ -66,7 +66,7 @@ const notificationListener = async () => {
     'notification.expense_created_queue',
     async ({ tenantId, managerId, expenseId, employeeName, amount }) => {
       console.log(`[Notification] Expense created by ${employeeName}, saving to DB and broadcasting.`);
-      
+
       // 1. Save and Notify Direct Manager
       if (managerId) {
         try {
@@ -137,7 +137,7 @@ const notificationListener = async () => {
     'notification.expense_status_queue',
     async ({ tenantId, expenseId, employeeId, managerId, status, amount }) => {
       console.log(`[Notification] Expense status updated to ${status}`);
-      
+
       // Notify the employee who created it
       if (employeeId) {
         try {
@@ -157,7 +157,7 @@ const notificationListener = async () => {
           console.error('Failed to persist employee status notification:', err.message);
         }
       }
-      
+
       // If Manager Approved, notify Finance and Auditor
       if (status === 'Manager Approved') {
         try {
@@ -216,6 +216,38 @@ const notificationListener = async () => {
             console.error('Failed to persist finance status notification:', err.message);
           }
         }
+      }
+    }
+  );
+
+  // --- Real-time Socket Notification: Subscription Activated / Upgraded ---
+  await subscribeToQueue(
+    'ems.events',
+    'billing.subscription_activated',
+    'notification.subscription_activated_queue',
+    async ({ companyName, planName, isUpgrade, previousPlanName }) => {
+      console.log(`[Notification] Subscription activated/upgraded for ${companyName}`);
+      try {
+        const text = isUpgrade
+          ? `Company "${companyName}" upgraded from ${previousPlanName} to ${planName} Plan.`
+          : `Company "${companyName}" activated ${planName} Plan.`;
+
+        // 1. Save to DB for Platform (SuperAdmin)
+        const dbNotif = await Notification.create({
+          tenantId: 'platform',
+          text,
+          type: 'subscription_upgraded'
+        });
+
+        // 2. Broadcast via Socket
+        emitToTenant('platform', 'new_notification', {
+          id: dbNotif._id,
+          text: dbNotif.text,
+          time: 'Just now',
+          type: dbNotif.type
+        });
+      } catch (err) {
+        console.error('[Notification] Failed to process subscription notification:', err.message);
       }
     }
   );

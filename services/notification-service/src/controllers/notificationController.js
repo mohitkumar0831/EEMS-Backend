@@ -15,12 +15,14 @@ export const getNotifications = async (req, res, next) => {
             { userId: null, role: null },
             { userId: { $exists: false }, role: { $exists: false } }
           ]
-        },
-        {
-          tenantId: 'platform'
         }
       ]
     };
+
+    const cleanRole = (role || '').toLowerCase().replace('_', '');
+    if (cleanRole === 'superadmin') {
+      query.$or.push({ tenantId: 'platform' });
+    }
 
     const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(100);
 
@@ -75,12 +77,14 @@ export const markAllRead = async (req, res, next) => {
             { userId: null, role: null },
             { userId: { $exists: false }, role: { $exists: false } }
           ]
-        },
-        {
-          tenantId: 'platform'
         }
       ]
     };
+
+    const cleanRole = (role || '').toLowerCase().replace('_', '');
+    if (cleanRole === 'superadmin') {
+      query.$or.push({ tenantId: 'platform' });
+    }
 
     await Notification.updateMany(
       query,

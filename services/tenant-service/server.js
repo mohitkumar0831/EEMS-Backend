@@ -8,6 +8,7 @@ import connectRedis from './src/config/redis.js';
 import { connectRabbitMQ } from './src/config/rabbitmq.js';
 import tenantRoutes from './src/routes/tenantRoutes.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
+import tenantListener from './src/listeners/tenantListener.js';
 
 dotenv.config();
 const app = express();
@@ -26,6 +27,7 @@ const start = async () => {
   await connectDB();
   await connectRedis();
   await connectRabbitMQ();
+  await tenantListener();
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`Tenant Service listening on port ${PORT}`);

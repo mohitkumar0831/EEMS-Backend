@@ -3,7 +3,7 @@ import amqplib from 'amqplib';
 let connection;
 let channel;
 
-const connectWithRetry = async (url, retries = 10, delayMs = 3000) => {
+const connectWithRetry = async (url, retries = 30, delayMs = 3000) => {
   let lastError;
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
@@ -30,4 +30,25 @@ export const publishEvent = async (exchange, routingKey, payload) => {
   const ch = await connectRabbitMQ();
   await ch.assertExchange(exchange, 'topic', { durable: true });
   ch.publish(exchange, routingKey, Buffer.from(JSON.stringify(payload)), { persistent: true });
+};
+
+/**
+ * Subscribe to a topic-exchange routing key pattern.
+ */
+export const subscribeToQueue = async (exchange, pattern, queue, handler) => {
+  const ch = await connectRabbitMQ();
+  await ch.assertExchange(exchange, 'topic', { durable: true });
+  await ch.assertQueue(queue, { durable: true });
+  await ch.bindQueue(queue, exchange, pattern);
+  ch.consume(queue, async (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString());
+      await handler(payload);
+      ch.ack(msg);
+    } catch (err) {
+      console.error(`[RabbitMQ] Error processing message on queue "${queue}":`, err.message);
+      ch.nack(msg, false, false);
+    }
+  });
 };

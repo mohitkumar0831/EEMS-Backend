@@ -250,7 +250,7 @@ export const validateTenant = async (tenantId, tenantSlug) => {
 export const getDashboardStats = async () => {
   const activeTenants = await Tenant.countDocuments({ status: 'Active', isDeleted: false });
   const totalTenants = await Tenant.countDocuments({ isDeleted: false });
-  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName slug status createdAt');
+  const tenants = await Tenant.find({ isDeleted: false }).select('_id companyName slug status createdAt subscriptionPlan subscriptionStatus employeeCapacity planExpiryDate billingCycle');
   
   return {
     activeTenants,

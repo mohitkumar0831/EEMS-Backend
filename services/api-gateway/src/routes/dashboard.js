@@ -24,22 +24,29 @@ router.get('/superadmin', async (req, res, next) => {
     };
 
     // Parallel requests to internal microservices
-    const [tenantRes, userRes, expenseRes] = await Promise.all([
+    const [tenantRes, userRes, expenseRes, billingRes] = await Promise.all([
       fetchWithAuth(`${process.env.TENANT_SERVICE_URL}/api/v1/tenants/dashboard/stats`),
       fetchWithAuth(`${process.env.AUTH_SERVICE_URL}/api/v1/auth/stats/dashboard`),
-      fetchWithAuth(`${process.env.EXPENSE_SERVICE_URL}/api/v1/expenses/dashboard/stats`)
+      fetchWithAuth(`${process.env.EXPENSE_SERVICE_URL}/api/v1/expenses/dashboard/stats`),
+      fetchWithAuth(`${process.env.BILLING_SERVICE_URL}/api/v1/billing/subscriptions/stats`)
     ]);
 
     const tenantStats = tenantRes.data?.data || {};
     const userStats = userRes.data?.data || {};
     const expenseStats = expenseRes.data?.data || {};
+    const billingStats = billingRes.data?.data || {};
 
-    // Attach user counts to tenants
-    if (tenantStats.tenants && userStats.usersPerTenantMap) {
-      tenantStats.tenants = tenantStats.tenants.map(t => ({
-        ...t,
-        userCount: userStats.usersPerTenantMap[t._id.toString()] || 0
-      }));
+    // Attach tenant metrics
+    if (tenantStats.tenants) {
+      tenantStats.tenants = tenantStats.tenants.map(t => {
+        const tenantIdStr = (t._id || t.id)?.toString();
+        return {
+          ...t,
+          userCount: userStats.usersPerTenantMap?.[tenantIdStr] || 0,
+          userSpend: expenseStats.tenantUserSpendMap?.[tenantIdStr] || 0,
+          adminFinancePaid: expenseStats.tenantAdminFinancePaidMap?.[tenantIdStr] || 0
+        };
+      });
     }
 
     // Mock policy and audit data for now
@@ -54,7 +61,10 @@ router.get('/superadmin', async (req, res, next) => {
         ...tenantStats,
         ...userStats,
         ...expenseStats,
+        ...billingStats,
         ...policyStats,
+        totalSpend: billingStats.totalRevenue || 0, // Override with subscription revenue
+        totalRevenue: billingStats.totalRevenue || 0,
         auditLogs
       }
     });

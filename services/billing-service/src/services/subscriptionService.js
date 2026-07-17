@@ -1,5 +1,6 @@
 import Subscription from '../models/Subscription.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Payment from '../models/Payment.js';
 import {
   sendSubscriptionCreatedEvent,
   sendSubscriptionActivatedEvent,
@@ -106,9 +107,27 @@ export const getSubscriptionByTenantId = async (tenantId) => {
 /**
  * Activate subscription after payment
  */
-export const activateSubscription = async (subscriptionId, paymentDate) => {
+export const activateSubscription = async (subscriptionId, paymentDate, targetPlanId = null) => {
   const subscription = await Subscription.findById(subscriptionId);
   if (!subscription) throw { status: 404, message: 'Subscription not found' };
+
+  let plan = await SubscriptionPlan.findById(subscription.planId);
+  let isUpgrade = false;
+  let previousPlanName = null;
+
+  if (targetPlanId && targetPlanId.toString() !== subscription.planId.toString()) {
+    const targetPlan = await SubscriptionPlan.findById(targetPlanId);
+    if (!targetPlan) throw { status: 404, message: 'Target plan not found' };
+
+    isUpgrade = true;
+    previousPlanName = subscription.planName;
+    subscription.previousPlanId = subscription.planId;
+    subscription.planId = targetPlan._id;
+    subscription.planName = targetPlan.name;
+    subscription.currentAmount = getPlanPrice(targetPlan, subscription.billingCycle);
+    subscription.upgradedAt = new Date();
+    plan = targetPlan;
+  }
 
   const billingStart = paymentDate || new Date();
   const billingEnd = calculateEndDate(billingStart, subscription.billingCycle);
@@ -137,6 +156,13 @@ export const activateSubscription = async (subscriptionId, paymentDate) => {
     planName: subscription.planName,
     status: 'Active',
     endDate: subscription.endDate,
+    userLimit: plan?.userLimit,
+    storageGB: plan?.storageGB,
+    branchLimit: plan?.branchLimit,
+    billingCycle: subscription.billingCycle,
+    isUpgrade,
+    previousPlanName,
+    companyName: subscription.companyName,
   });
 
   return subscription;
@@ -246,6 +272,10 @@ export const getBillingStats = async () => {
     planDistribution[s.planName] = (planDistribution[s.planName] || 0) + 1;
   });
 
+  // Calculate Total Subscription Revenue
+  const allPayments = await Payment.find({ status: 'Captured' });
+  const totalRevenue = allPayments.reduce((sum, p) => sum + (p.totalAmount || p.amount || 0), 0);
+
   return {
     totalTenants,
     activeSubs,
@@ -254,6 +284,7 @@ export const getBillingStats = async () => {
     suspendedSubs,
     mrr: Math.round(mrr * 100) / 100,
     planDistribution,
+    totalRevenue,
   };
 };
 

@@ -40,6 +40,9 @@ const paymentSchema = new mongoose.Schema(
 
     // Invoice reference
     invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
+
+    // Target plan for upgrades
+    targetPlanId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan', default: null },
   },
   { timestamps: true }
 );

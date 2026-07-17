@@ -3,7 +3,7 @@ import amqplib from 'amqplib';
 let connection;
 let channel;
 
-const connectWithRetry = async (url, retries = 10, delayMs = 3000) => {
+const connectWithRetry = async (url, retries = 30, delayMs = 3000) => {
   let lastError;
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {

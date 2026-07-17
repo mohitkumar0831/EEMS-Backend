@@ -245,7 +245,7 @@ export const changePassword = async ({ userId, oldPassword, newPassword }) => {
 // ─── Dashboard Stats (SuperAdmin) ───────────────────────────────────────────
 export const getTenantUserCounts = async () => {
   const userCounts = await User.aggregate([
-    { $match: { isActive: true, isDeleted: false, tenantId: { $ne: null } } },
+    { $match: { isActive: true, isDeleted: false, tenantId: { $ne: null }, role: { $ne: 'company_admin' } } },
     { $group: { _id: "$tenantId", count: { $sum: 1 } } }
   ]);
 

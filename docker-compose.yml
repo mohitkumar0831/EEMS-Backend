@@ -18,6 +18,11 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api-gateway:
     build: ./services/api-gateway
@@ -39,14 +44,22 @@ services:
       - BILLING_SERVICE_URL=http://billing-service:4800
       - AUDIT_SERVICE_URL=http://audit-service:4900
     depends_on:
-      - redis
-      - rabbitmq
-      - auth-service
-      - tenant-service
-      - user-service
-      - expense-service
-      - billing-service
-      - audit-service
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      tenant-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      expense-service:
+        condition: service_started
+      billing-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
 
   auth-service:
     build: ./services/auth-service
@@ -62,8 +75,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   tenant-service:
     build: ./services/tenant-service
@@ -81,8 +96,10 @@ services:
       - TENANT_BASE_URL=http://localhost:3000
       - AUTH_SERVICE_URL=http://auth-service:4100
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   user-service:
     build: ./services/user-service
@@ -98,8 +115,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   expense-service:
     build: ./services/expense-service
@@ -118,8 +137,10 @@ services:
       - TENANT_SERVICE_URL=http://tenant-service:4200
       - USER_SERVICE_URL=http://user-service:4300
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   workflow-service:
     build: ./services/workflow-service
@@ -135,8 +156,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   notification-service:
     build: ./services/notification-service
@@ -151,8 +174,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   file-service:
     build: ./services/file-service
@@ -167,8 +192,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   billing-service:
     build: ./services/billing-service
@@ -184,8 +211,10 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   audit-service:
     build: ./services/audit-service
@@ -201,5 +230,7 @@ services:
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy

@@ -1,7 +1,12 @@
+import mongoose from 'mongoose';
 import { getTenantModel } from '../config/db.js';
 import { expenseSchema } from '../models/Expense.js';
 import { receiptSchema } from '../models/Receipt.js';
 import { expensePolicySchema } from '../models/ExpensePolicy.js';
+
+const userMinimalSchema = new mongoose.Schema({
+  role: { type: String, required: true }
+});
 import { processReceipt } from '../utils/ocr.js';
 import { parseReceiptText } from '../utils/receiptParser.js';
 import { publishEvent } from '../config/rabbitmq.js';
@@ -802,6 +807,8 @@ export const getDashboardStats = async (authHeader) => {
   let flaggedClaims = 0;
   const categorySpend = {};
   const tenantSpendMap = {};
+  const tenantUserSpendMap = {};
+  const tenantAdminFinancePaidMap = {};
 
   try {
     const tenantServiceUrl = process.env.TENANT_SERVICE_URL || 'http://localhost:4000';
@@ -817,32 +824,53 @@ export const getDashboardStats = async (authHeader) => {
         if (!tenant.dbName) continue;
         
         let currentTenantSpend = 0;
+        let currentTenantUserSpend = 0;
+        let currentTenantAdminFinancePaid = 0;
 
         try {
           const Expense = getTenantModel(tenant.dbName, 'Expense', expenseSchema);
+          const User = getTenantModel(tenant.dbName, 'User', userMinimalSchema);
+
+          // Get all users of this tenant to map their roles
+          const users = await User.find({}).lean();
+          const userRoleMap = {};
+          users.forEach(u => {
+            userRoleMap[u._id.toString()] = u.role;
+          });
+
           const expenses = await Expense.find({}).lean();
 
           for (const exp of expenses) {
             totalClaims++;
             const amount = exp.amount || 0;
+            const role = userRoleMap[exp.employeeId?.toString()] || 'employee';
 
-            if (['Pending', 'Submitted', 'Manager Approved', 'Under Review'].includes(exp.status)) {
+            if (['Pending', 'Submitted', 'Under Review'].includes(exp.status)) {
               pendingClaims++;
             }
-            if (['Approved', 'Finance Approved'].includes(exp.status)) {
+            if (['Manager Approved', 'Finance Approved', 'Paid', 'Audited'].includes(exp.status)) {
               approvedClaims++;
             }
-            if (['Flagged', 'Audit Failed', 'Under Review'].includes(exp.status)) {
+            if (['Audit Failed', 'Manager Rejected', 'Finance Rejected'].includes(exp.status)) {
               flaggedClaims++;
             }
-            if (['Approved', 'Paid', 'Audit Cleared', 'Audit Failed', 'Flagged'].includes(exp.status)) {
+
+            if (['Manager Approved', 'Finance Approved', 'Paid', 'Audited'].includes(exp.status)) {
               totalSpend += amount;
               currentTenantSpend += amount;
               categorySpend[exp.category] = (categorySpend[exp.category] || 0) + amount;
+
+              if (['admin', 'finance'].includes(role)) {
+                currentTenantAdminFinancePaid += amount;
+              } else {
+                currentTenantUserSpend += amount;
+              }
             }
           }
           
           tenantSpendMap[tenant._id.toString()] = currentTenantSpend;
+          tenantUserSpendMap[tenant._id.toString()] = currentTenantUserSpend;
+          tenantAdminFinancePaidMap[tenant._id.toString()] = currentTenantAdminFinancePaid;
         } catch (dbErr) {
           console.error(`Failed to aggregate stats for tenant DB: ${tenant.dbName}`, dbErr.message);
         }
@@ -859,7 +887,9 @@ export const getDashboardStats = async (authHeader) => {
     approvedClaims,
     flaggedClaims,
     categorySpend,
-    tenantSpendMap
+    tenantSpendMap,
+    tenantUserSpendMap,
+    tenantAdminFinancePaidMap
   };
 };
 

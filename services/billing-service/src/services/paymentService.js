@@ -2,6 +2,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Payment from '../models/Payment.js';
 import Subscription from '../models/Subscription.js';
+import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import { activateSubscription } from './subscriptionService.js';
 import { generateInvoice } from './invoiceService.js';
 import { sendPaymentSuccessEvent, sendNotificationEvent } from '../utils/events.js';
@@ -18,17 +19,43 @@ const getRazorpayInstance = () => {
 };
 
 /**
+ * Get plan price based on billing cycle
+ */
+const getPlanPrice = (plan, billingCycle) => {
+  switch (billingCycle) {
+    case 'Monthly': return plan.priceMonthly;
+    case 'Quarterly': return plan.priceQuarterly || plan.priceMonthly * 3;
+    case 'Yearly': return plan.priceYearly || plan.priceMonthly * 12;
+    default: return plan.priceMonthly;
+  }
+};
+
+/**
  * Create a Razorpay order for subscription payment
  */
 export const createOrder = async (payload) => {
-  const { subscriptionId, tenantId, tenantSlug } = payload;
+  const { subscriptionId, tenantId, tenantSlug, targetPlanId } = payload;
 
   const subscription = await Subscription.findById(subscriptionId);
   if (!subscription) throw { status: 404, message: 'Subscription not found' };
   if (subscription.tenantId !== tenantId) throw { status: 403, message: 'Subscription does not belong to this tenant' };
 
-  const amount = subscription.currentAmount;
-  if (amount <= 0) throw { status: 400, message: 'No payment required for free plans' };
+  let amount = subscription.currentAmount;
+  let description = `${subscription.planName} plan - ${subscription.billingCycle} subscription`;
+  let planName = subscription.planName;
+
+  if (targetPlanId && targetPlanId !== subscription.planId.toString()) {
+    const targetPlan = await SubscriptionPlan.findById(targetPlanId);
+    if (!targetPlan) throw { status: 404, message: 'Target plan not found' };
+
+    const currentPrice = ['Active', 'Trial'].includes(subscription.status) ? subscription.currentAmount : 0;
+    const targetPrice = getPlanPrice(targetPlan, subscription.billingCycle);
+    amount = Math.max(0, targetPrice - currentPrice);
+    planName = targetPlan.name;
+    description = `Upgrade from ${subscription.planName} to ${targetPlan.name} plan - ${subscription.billingCycle} subscription`;
+  }
+
+  if (amount <= 0) throw { status: 400, message: 'No payment required for this transaction' };
 
   // Calculate GST
   const gstPercent = 18;
@@ -45,8 +72,9 @@ export const createOrder = async (payload) => {
       subscriptionId: subscriptionId,
       tenantId: tenantId,
       tenantSlug: tenantSlug,
-      planName: subscription.planName,
+      planName: planName,
       billingCycle: subscription.billingCycle,
+      targetPlanId: targetPlanId || '',
     },
   });
 
@@ -71,9 +99,10 @@ export const createOrder = async (payload) => {
     currency: subscription.currency || 'INR',
     razorpayOrderId: order.id,
     status: 'Created',
-    description: `${subscription.planName} plan - ${subscription.billingCycle} subscription`,
+    description,
     billingPeriodStart,
     billingPeriodEnd,
+    targetPlanId: targetPlanId || null,
   });
 
   return {
@@ -81,7 +110,7 @@ export const createOrder = async (payload) => {
     amount: order.amount,
     currency: order.currency,
     paymentId: payment._id,
-    planName: subscription.planName,
+    planName: planName,
     billingCycle: subscription.billingCycle,
     razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   };
@@ -126,7 +155,7 @@ export const verifyPayment = async (payload) => {
   if (!payment) throw { status: 404, message: 'Payment record not found' };
 
   // Activate the subscription
-  const subscription = await activateSubscription(subscriptionId, new Date());
+  const subscription = await activateSubscription(subscriptionId, new Date(), payment.targetPlanId);
 
   // Generate invoice
   const invoice = await generateInvoice(payment, subscription);
@@ -182,6 +211,7 @@ export const getAllPayments = async (filters = {}) => {
 
   return Payment.find(query)
     .populate('subscriptionId')
+    .populate('invoiceId')
     .sort({ createdAt: -1 })
     .limit(filters.limit || 100);
 };
@@ -189,9 +219,18 @@ export const getAllPayments = async (filters = {}) => {
 /**
  * Get monthly payment volume for the specified year
  */
-export const getMonthlyVolume = async (year) => {
-  const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
-  const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
+export const getMonthlyVolume = async (year, month = null) => {
+  let startDate, endDate, groupBy;
+
+  if (month) {
+    startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+    endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+    groupBy = { $dayOfMonth: "$paidAt" };
+  } else {
+    startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+    endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+    groupBy = { $month: "$paidAt" };
+  }
 
   const result = await Payment.aggregate([
     {
@@ -202,7 +241,7 @@ export const getMonthlyVolume = async (year) => {
     },
     {
       $group: {
-        _id: { $month: "$paidAt" },
+        _id: groupBy,
         totalSpend: { $sum: "$totalAmount" }
       }
     },

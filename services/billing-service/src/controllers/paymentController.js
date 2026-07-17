@@ -68,7 +68,8 @@ export const downloadInvoice = async (req, res) => {
 export const getMonthlyVolume = async (req, res) => {
   try {
     const year = parseInt(req.query.year) || new Date().getFullYear();
-    const result = await paymentService.getMonthlyVolume(year);
+    const month = req.query.month ? parseInt(req.query.month) : null;
+    const result = await paymentService.getMonthlyVolume(year, month);
     return successResponse({ res, message: 'Monthly payment volume retrieved', data: result });
   } catch (error) {
     return errorResponse({ res, message: error.message, status: error.status || 500 });

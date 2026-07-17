@@ -64,6 +64,7 @@ export const createOrderSchema = Joi.object({
   subscriptionId: Joi.string().required(),
   tenantId: Joi.string().required(),
   tenantSlug: Joi.string().required(),
+  targetPlanId: Joi.string().optional(),
 });
 
 export const verifyPaymentSchema = Joi.object({
