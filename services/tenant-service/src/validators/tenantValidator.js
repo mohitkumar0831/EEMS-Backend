@@ -18,11 +18,8 @@ export const registerTenantSchema = Joi.object({
   monthlyExpenseLimit: Joi.number().min(0).optional().allow(null),
 
   // Subscription Details
-  subscriptionPlan: Joi.string().valid('Free', 'Basic', 'Standard', 'Enterprise').optional(),
-  planStartDate: Joi.date().iso().optional().allow(null),
-  planExpiryDate: Joi.date().iso().min(Joi.ref('planStartDate')).optional().allow(null),
-  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Yearly').optional(),
-  subscriptionStatus: Joi.string().valid('Active', 'Expired', 'Trial', 'Suspended').optional(),
+  subscriptionPlan: Joi.string().valid('Trial', 'Basic', 'Standard', 'Enterprise').optional(),
+  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Half-Yearly', 'Yearly').optional(),
 
   // Company Address
   address: Joi.object({

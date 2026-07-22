@@ -21,7 +21,8 @@ const SALT_ROUNDS = 10;
 
 // Plan-based user limits (must match billing-service seed values)
 const PLAN_USER_LIMITS = {
-  Free: 10,
+  Trial: 20,
+  Free: 20,
   Basic: 100,
   Standard: 500,
   Enterprise: 2000,

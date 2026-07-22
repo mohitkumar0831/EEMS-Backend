@@ -67,7 +67,7 @@ export const tenantWelcomeTemplate = ({ adminName, companyName, tenantUrl, tempP
         ⚠️ <strong>Important:</strong> Please log in and change your password immediately. This temporary password will expire after first use.
       </div>
 
-      <a href="${tenantUrl}" class="btn">Go to Your Portal →</a>
+      <a href="${tenantUrl}" class="btn" style="color: #ffffff !important; text-decoration: none;">Go to Your Portal →</a>
     </div>
     <div class="footer">
       © ${new Date().getFullYear()} EMS — Expense Management System. This is an automated email, please do not reply.

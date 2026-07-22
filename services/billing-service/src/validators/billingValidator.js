@@ -2,11 +2,12 @@ import Joi from 'joi';
 
 // Plan validators
 export const createPlanSchema = Joi.object({
-  name: Joi.string().valid('Free', 'Basic', 'Standard', 'Enterprise').required(),
+  name: Joi.string().valid('Trial', 'Basic', 'Standard', 'Enterprise').required(),
   displayName: Joi.string().required().trim(),
   description: Joi.string().allow('').default(''),
   priceMonthly: Joi.number().min(0).required(),
   priceQuarterly: Joi.number().min(0).default(0),
+  priceHalfYearly: Joi.number().min(0).default(0),
   priceYearly: Joi.number().min(0).default(0),
   currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP', 'AUD').default('INR'),
   userLimit: Joi.number().integer().min(1).required(),
@@ -24,6 +25,7 @@ export const updatePlanSchema = Joi.object({
   description: Joi.string().allow(''),
   priceMonthly: Joi.number().min(0),
   priceQuarterly: Joi.number().min(0),
+  priceHalfYearly: Joi.number().min(0),
   priceYearly: Joi.number().min(0),
   currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP', 'AUD'),
   userLimit: Joi.number().integer().min(1),
@@ -42,14 +44,14 @@ export const createSubscriptionSchema = Joi.object({
   tenantSlug: Joi.string().required(),
   companyName: Joi.string().required(),
   planId: Joi.string().required(),
-  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Yearly').default('Monthly'),
+  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Half-Yearly', 'Yearly').default('Monthly'),
   startDate: Joi.date().default(() => new Date()),
   trialDays: Joi.number().integer().min(0).default(14),
 });
 
 export const upgradeSubscriptionSchema = Joi.object({
   planId: Joi.string().required(),
-  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Yearly'),
+  billingCycle: Joi.string().valid('Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'),
 });
 
 export const overrideSubscriptionSchema = Joi.object({

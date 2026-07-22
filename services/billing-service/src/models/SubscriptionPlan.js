@@ -7,7 +7,7 @@ const subscriptionPlanSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
-      enum: ['Free', 'Basic', 'Standard', 'Enterprise'],
+      enum: ['Trial', 'Basic', 'Standard', 'Enterprise'],
     },
     displayName: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
@@ -15,6 +15,7 @@ const subscriptionPlanSchema = new mongoose.Schema(
     // Pricing
     priceMonthly: { type: Number, required: true, default: 0 },
     priceQuarterly: { type: Number, default: 0 },
+    priceHalfYearly: { type: Number, default: 0 },
     priceYearly: { type: Number, default: 0 },
     currency: { type: String, default: 'INR', enum: ['INR', 'USD', 'EUR', 'GBP', 'AUD'] },
 

@@ -15,10 +15,11 @@ import {
 const calculateEndDate = (startDate, billingCycle) => {
   const end = new Date(startDate);
   switch (billingCycle) {
-    case 'Monthly': end.setMonth(end.getMonth() + 1); break;
-    case 'Quarterly': end.setMonth(end.getMonth() + 3); break;
-    case 'Yearly': end.setFullYear(end.getFullYear() + 1); break;
-    default: end.setMonth(end.getMonth() + 1);
+    case 'Monthly':     end.setMonth(end.getMonth() + 1); break;
+    case 'Quarterly':   end.setMonth(end.getMonth() + 3); break;
+    case 'Half-Yearly': end.setMonth(end.getMonth() + 6); break;
+    case 'Yearly':      end.setFullYear(end.getFullYear() + 1); break;
+    default:            end.setMonth(end.getMonth() + 1);
   }
   return end;
 };
@@ -28,10 +29,11 @@ const calculateEndDate = (startDate, billingCycle) => {
  */
 const getPlanPrice = (plan, billingCycle) => {
   switch (billingCycle) {
-    case 'Monthly': return plan.priceMonthly;
-    case 'Quarterly': return plan.priceQuarterly || plan.priceMonthly * 3;
-    case 'Yearly': return plan.priceYearly || plan.priceMonthly * 12;
-    default: return plan.priceMonthly;
+    case 'Monthly':     return plan.priceMonthly;
+    case 'Quarterly':   return plan.priceQuarterly   || Math.round(plan.priceMonthly * 3  * 0.90);
+    case 'Half-Yearly': return plan.priceHalfYearly  || Math.round(plan.priceMonthly * 6  * 0.80);
+    case 'Yearly':      return plan.priceYearly       || Math.round(plan.priceMonthly * 12 * 0.70);
+    default:            return plan.priceMonthly;
   }
 };
 
@@ -50,19 +52,20 @@ export const createSubscription = async (payload) => {
 
   const startDate = payload.startDate || new Date();
   const billingCycle = payload.billingCycle || 'Monthly';
-  const trialDays = payload.trialDays !== undefined ? payload.trialDays : 14;
   const price = getPlanPrice(plan, billingCycle);
 
-  // Calculate trial end and subscription end
+  const isTrial = plan.name === 'Trial';
+
+  // Trial plan: 30-day period, no charge, Trial status
+  // Paid plans: start Active immediately, end date = billing cycle duration
+  const trialDays = 30;
   const trialEndDate = new Date(startDate);
   trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
-  // For free plan, no trial needed — set as Active
-  const isFree = plan.name === 'Free' || price === 0;
-  const status = isFree ? 'Active' : 'Trial';
-  const endDate = isFree
-    ? new Date(new Date().setFullYear(new Date().getFullYear() + 100)) // Free = effectively forever
-    : trialEndDate; // For paid plans, initial end = trial end. Extended on payment.
+  const initialStatus = payload.status || (isTrial ? 'Trial' : 'Active');
+  const endDate = isTrial
+    ? trialEndDate                              // Trial: ends after 30 days
+    : calculateEndDate(startDate, billingCycle); // Paid: ends after billing cycle
 
   const subscription = await Subscription.create({
     tenantId: payload.tenantId,
@@ -70,14 +73,14 @@ export const createSubscription = async (payload) => {
     companyName: payload.companyName,
     planId: plan._id,
     planName: plan.name,
-    status,
+    status: initialStatus,
     billingCycle,
-    currentAmount: price,
+    currentAmount: isTrial ? 0 : price,
     currency: plan.currency,
     startDate,
     endDate,
-    trialEndDate: isFree ? null : trialEndDate,
-    nextBillingDate: isFree ? null : trialEndDate,
+    trialEndDate: isTrial ? trialEndDate : null,
+    nextBillingDate: isTrial ? trialEndDate : endDate,
     gracePeriodDays: 7,
     createdBy: payload.createdBy || null,
   });
@@ -260,9 +263,10 @@ export const getBillingStats = async () => {
   const mrr = allSubs
     .filter(s => s.status === 'Active')
     .reduce((sum, s) => {
-      if (s.billingCycle === 'Monthly') return sum + s.currentAmount;
-      if (s.billingCycle === 'Quarterly') return sum + (s.currentAmount / 3);
-      if (s.billingCycle === 'Yearly') return sum + (s.currentAmount / 12);
+      if (s.billingCycle === 'Monthly')     return sum + s.currentAmount;
+      if (s.billingCycle === 'Quarterly')   return sum + (s.currentAmount / 3);
+      if (s.billingCycle === 'Half-Yearly') return sum + (s.currentAmount / 6);
+      if (s.billingCycle === 'Yearly')      return sum + (s.currentAmount / 12);
       return sum;
     }, 0);
 

@@ -79,14 +79,14 @@ export const deactivatePlan = async (planId) => {
 export const seedDefaultPlans = async () => {
   const defaults = [
     {
-      name: 'Free',
-      displayName: 'Free',
-      description: 'Get started with basic features',
+      name: 'Trial',
+      displayName: 'Trial',
+      description: 'Get started with 1 month trial features',
       priceMonthly: 0, priceQuarterly: 0, priceYearly: 0,
-      userLimit: 10, storageGB: 2, branchLimit: 1,
+      userLimit: 20, storageGB: 5, branchLimit: 1,
       supportLevel: 'Community Forum',
       customDomain: false,
-      features: ['Basic expense tracking', 'Community forum support'],
+      features: ['Basic expense tracking', 'Community forum support', '1 Month Free Trial (20 Users, 5GB)'],
       sortOrder: 0, isDefault: true,
     },
     {

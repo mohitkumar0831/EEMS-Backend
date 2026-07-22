@@ -26,7 +26,7 @@ export const startBillingEventListeners = async () => {
       // Find the plan by name (from tenant registration data) or use default
       let plan;
       try {
-        plan = await planService.getPlanByName(data.subscriptionPlan || 'Free');
+        plan = await planService.getPlanByName(data.subscriptionPlan || 'Trial');
       } catch {
         // If plan not found, try to get default plan
         const allPlans = await planService.getAllPlans();
@@ -46,7 +46,6 @@ export const startBillingEventListeners = async () => {
             companyName: data.companyName || data.tenantSlug,
             planId: plan._id.toString(),
             billingCycle: data.billingCycle || 'Monthly',
-            trialDays: plan.name === 'Free' ? 0 : 14,
           });
           console.log(`[BILLING LISTENER] Subscription created for tenant ${data.tenantSlug} on ${plan.name} plan`);
         }

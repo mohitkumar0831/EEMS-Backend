@@ -11,10 +11,7 @@ const tenantListener = async () => {
       try {
         const updateFields = {
           subscriptionPlan: planName,
-          subscriptionStatus: 'Active',
           billingCycle: billingCycle || 'Monthly',
-          planExpiryDate: endDate ? new Date(endDate) : null,
-          planStartDate: new Date(),
         };
 
         if (userLimit !== undefined) updateFields.employeeCapacity = userLimit;

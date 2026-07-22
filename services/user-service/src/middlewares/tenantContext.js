@@ -16,7 +16,7 @@ export const tenantContext = (req, res, next) => {
     id: tenantId,
     dbName: tenantDb,
     slug: tenantSlug,
-    subscriptionPlan: tenantPlan || 'Free',
+    subscriptionPlan: tenantPlan || 'Trial',
   };
   
   next();

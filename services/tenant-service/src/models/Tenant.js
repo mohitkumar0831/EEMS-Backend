@@ -26,20 +26,13 @@ const tenantSchema = new mongoose.Schema(
     // Subscription Details
     subscriptionPlan: {
       type: String,
-      enum: ['Free', 'Basic', 'Standard', 'Enterprise'],
-      default: 'Free'
+      enum: ['Trial', 'Basic', 'Standard', 'Enterprise'],
+      default: 'Trial'
     },
-    planStartDate: { type: Date, default: null },
-    planExpiryDate: { type: Date, default: null },
     billingCycle: {
       type: String,
-      enum: ['Monthly', 'Quarterly', 'Yearly'],
+      enum: ['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'],
       default: 'Monthly'
-    },
-    subscriptionStatus: {
-      type: String,
-      enum: ['Active', 'Expired', 'Trial', 'Suspended'],
-      default: 'Trial'
     },
 
     // Company Address
